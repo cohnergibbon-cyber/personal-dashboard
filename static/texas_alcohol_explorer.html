@@ -167,11 +167,11 @@ tbody td.dim { color: #6b6b68; font-size: 11px; }
       <div class="field" style="grid-column:1/-1; margin-top:2px;">
         <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <input type="checkbox" id="f-ytd" onchange="if(this.checked)document.getElementById('f-t12').checked=false;" style="width:18px;height:18px;cursor:pointer;accent-color:#1a1a18;flex-shrink:0;appearance:checkbox;-webkit-appearance:checkbox;" />
+            <input type="checkbox" id="f-ytd" onchange="onYTDChange(this)" style="width:18px;height:18px;cursor:pointer;accent-color:#1a1a18;flex-shrink:0;appearance:checkbox;-webkit-appearance:checkbox;" />
             <label for="f-ytd" style="font-size:13px;color:#1a1a18;cursor:pointer;user-select:none;">Year to Date</label>
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
-            <input type="checkbox" id="f-t12" onchange="if(this.checked)document.getElementById('f-ytd').checked=false;" style="width:18px;height:18px;cursor:pointer;accent-color:#1a1a18;flex-shrink:0;appearance:checkbox;-webkit-appearance:checkbox;" />
+            <input type="checkbox" id="f-t12" onchange="onT12Change(this)" style="width:18px;height:18px;cursor:pointer;accent-color:#1a1a18;flex-shrink:0;appearance:checkbox;-webkit-appearance:checkbox;" />
             <label for="f-t12" style="font-size:13px;color:#1a1a18;cursor:pointer;user-select:none;">Trailing 12 months</label>
           </div>
         </div>
@@ -317,6 +317,13 @@ function runQuery() {
   var year = document.getElementById('f-year').value;
   var isYTD = document.getElementById('f-ytd').checked && month && year;
   var isT12 = document.getElementById('f-t12').checked && month && year;
+  // Warn if T12/YTD checked without a month
+  if ((document.getElementById('f-ytd').checked || document.getElementById('f-t12').checked) && (!month || !year)) {
+    document.getElementById('err-box').textContent = 'Please select both a month and year when using Year to Date or Trailing 12 months.';
+    document.getElementById('err-box').style.display = 'block';
+    btn.textContent = 'Run query'; btn.disabled = false;
+    return;
+  }
   selectedMonth = month; selectedYear = year;
   var pyYear = year ? String(parseInt(year)-1) : '';
 
@@ -888,6 +895,36 @@ function exportModalCSV() {
     rows.push([fmtDate(r.obligation_end_date_yyyymmdd),Math.round(parseFloat(r.total_receipts)||0),Math.round(parseFloat(r.liquor_receipts)||0),Math.round(parseFloat(r.wine_receipts)||0),Math.round(parseFloat(r.beer_receipts)||0)]);
   });
   downloadCSV(rows, 'history_'+modalLocationName.replace(/[^a-z0-9]/gi,'_').toLowerCase().slice(0,30)+'.csv');
+}
+function getMostRecentPeriod() {
+  // TABC data lags ~6 weeks - most recent available is typically 2 months ago
+  var d = new Date();
+  d.setMonth(d.getMonth() - 2);
+  return {
+    month: String(d.getMonth() + 1).padStart(2, '0'),
+    year: String(d.getFullYear())
+  };
+}
+function defaultMonthIfNeeded() {
+  var mSel = document.getElementById('f-month');
+  var ySel = document.getElementById('f-year');
+  if (!mSel.value || !ySel.value) {
+    var p = getMostRecentPeriod();
+    if (!mSel.value) mSel.value = p.month;
+    if (!ySel.value) ySel.value = p.year;
+  }
+}
+function onT12Change(cb) {
+  if (cb.checked) {
+    document.getElementById('f-ytd').checked = false;
+    defaultMonthIfNeeded();
+  }
+}
+function onYTDChange(cb) {
+  if (cb.checked) {
+    document.getElementById('f-t12').checked = false;
+    defaultMonthIfNeeded();
+  }
 }
 // Wire up
 initCityDropdown();

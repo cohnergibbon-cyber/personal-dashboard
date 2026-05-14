@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Texas Alcohol Explorer</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f3; color: #1a1a18; min-height: 100vh; }
+.page { max-width: 900px; margin: 0 auto; padding: 20px 16px 40px; }
+.eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6b68; margin-bottom: 4px; }
+h1 { font-size: 22px; font-weight: 600; margin-bottom: 20px; }
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.metric { background: #fff; border-radius: 10px; padding: 12px 14px; border: 1px solid #e0e0de; }
+.metric-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #6b6b68; margin-bottom: 4px; }
+.metric-value { font-size: 20px; font-weight: 600; }
+.panel { background: #fff; border: 1px solid #e0e0de; border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+.panel-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #6b6b68; margin-bottom: 12px; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.field label { display: block; font-size: 11px; color: #6b6b68; margin-bottom: 4px; }
+input, select { width: 100%; font-size: 16px; padding: 8px 10px; height: 42px; border-radius: 7px; border: 1px solid #ccc; background: #f0efeb; color: #1a1a18; outline: none; -webkit-appearance: none; appearance: none; }
+.month-year { display: flex; gap: 6px; }
+.month-year select { flex: 1; }
+.actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#btn-run { padding: 10px 24px; font-size: 15px; font-weight: 600; height: 44px; background: #1a1a18; color: #fff; border: none; border-radius: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent; display: inline-block; }
+#btn-clear { padding: 10px 18px; font-size: 15px; height: 44px; background: #fff; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; color: #6b6b68; -webkit-tap-highlight-color: transparent; }
+.summary { font-size: 12px; color: #6b6b68; }
+.err { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 7px; padding: 10px 14px; font-size: 13px; color: #b91c1c; margin-bottom: 14px; display: none; }
+.placeholder { text-align: center; padding: 40px 16px; color: #999; font-size: 14px; }
+.table-wrap { overflow-x: auto; border: 1px solid #e0e0de; border-radius: 10px; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 680px; }
+thead th { background: #f0efeb; padding: 8px 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #6b6b68; border-bottom: 1px solid #e0e0de; white-space: nowrap; cursor: pointer; user-select: none; text-align: left; }
+thead th.num { text-align: right; }
+thead th.active { color: #1a1a18; }
+tbody tr { border-bottom: 1px solid #e0e0de; }
+tbody tr:last-child { border-bottom: none; }
+tbody td { padding: 8px 10px; white-space: nowrap; }
+tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody td.dim { color: #6b6b68; font-size: 11px; }
+.pager { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; color: #6b6b68; flex-wrap: wrap; }
+.pager button { font-size: 13px; padding: 5px 14px; height: 34px; border-radius: 7px; border: 1px solid #ccc; background: #fff; color: #1a1a18; cursor: pointer; }
+.pager button:disabled { opacity: 0.3; }
+.pager-right { margin-left: auto; }
+#results { display: none; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="eyebrow">Texas Open Data · naix-2893</div>
+  <h1>Mixed Beverage Gross Receipts</h1>
+
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">Records</div><div class="metric-value" id="m-records">—</div></div>
+    <div class="metric"><div class="metric-label">Total receipts</div><div class="metric-value" id="m-total">—</div></div>
+    <div class="metric"><div class="metric-label">Liquor</div><div class="metric-value" id="m-liquor">—</div></div>
+    <div class="metric"><div class="metric-label">Beer + Wine</div><div class="metric-value" id="m-bw">—</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">Filters</div>
+    <div class="fields">
+      <div class="field">
+        <label>Taxpayer name</label>
+        <input id="f-taxpayer" type="text" placeholder="e.g. FB SOCIETY" autocomplete="off" autocorrect="off" autocapitalize="characters" />
+      </div>
+      <div class="field">
+        <label>City</label>
+        <input id="f-city" type="text" placeholder="e.g. DALLAS" autocomplete="off" autocorrect="off" autocapitalize="characters" />
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <label>ZIP code</label>
+        <input id="f-zip" type="text" inputmode="numeric" placeholder="e.g. 75225" autocomplete="off" style="max-width:200px" />
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <label>Period from</label>
+        <div class="month-year">
+          <select id="f-from-month">
+            <option value="">Month</option>
+            <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+            <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+            <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+          <select id="f-from-year"><option value="">Year</option></select>
+        </div>
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <label>Period to</label>
+        <div class="month-year">
+          <select id="f-to-month">
+            <option value="">Month</option>
+            <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+            <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+            <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+          <select id="f-to-year"><option value="">Year</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="btn-run">Run query</button>
+      <button id="btn-clear">Clear</button>
+      <span class="summary" id="summary"></span>
+    </div>
+  </div>
+
+  <div class="err" id="err-box"></div>
+  <div class="placeholder" id="placeholder">Set filters above and tap <strong>Run query</strong> to fetch live data.</div>
+  <div id="results">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th id="th-location_name">Location</th>
+          <th id="th-location_city">City</th>
+          <th>Address</th>
+          <th>ZIP</th>
+          <th class="num" id="th-total_receipts">Total</th>
+          <th class="num" id="th-liquor_receipts">Liquor</th>
+          <th class="num" id="th-wine_receipts">Wine</th>
+          <th class="num" id="th-beer_receipts">Beer</th>
+          <th id="th-obligation_end_date_yyyymmdd">Period</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <button id="btn-prev">← Prev</button>
+      <span id="page-info"></span>
+      <button id="btn-next">Next →</button>
+      <span class="pager-right" id="page-range"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+var API = 'https://data.texas.gov/resource/naix-2893.json';
+var PER = 25;
+var allRows = [], sortKey = 'obligation_end_date_yyyymmdd', sortDir = 'desc', page = 1;
+
+// Populate year dropdowns
+(function() {
+  var yr = new Date().getFullYear();
+  ['f-from-year','f-to-year'].forEach(function(id) {
+    var sel = document.getElementById(id);
+    for (var y = yr; y >= 2006; y--) {
+      var o = document.createElement('option');
+      o.value = String(y);
+      o.textContent = String(y);
+      sel.appendChild(o);
+    }
+  });
+})();
+
+function fmtMoney(v, compact) {
+  var n = parseFloat(v);
+  if (isNaN(n)) return '—';
+  if (n === 0) return '$0';
+  if (compact && Math.abs(n) >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+  if (compact && Math.abs(n) >= 1000) return '$' + Math.round(n/1000) + 'K';
+  return '$' + Math.round(n).toLocaleString('en-US');
+}
+
+function fmtDate(v) {
+  if (!v) return '—';
+  var s = String(v).replace(/-/g,'').replace(/T.*/,'');
+  if (s.length === 8) return s.slice(4,6) + '/' + s.slice(0,4);
+  return v;
+}
+
+function buildUrl() {
+  var taxpayer = document.getElementById('f-taxpayer').value.trim();
+  var city = document.getElementById('f-city').value.trim();
+  var zip = document.getElementById('f-zip').value.trim();
+  var fromM = document.getElementById('f-from-month').value;
+  var fromY = document.getElementById('f-from-year').value;
+  var toM = document.getElementById('f-to-month').value;
+  var toY = document.getElementById('f-to-year').value;
+
+  var where = [];
+  if (taxpayer) where.push("upper(taxpayer_name) like '%" + taxpayer.toUpperCase().replace(/'/g,"''") + "%'");
+  if (city) where.push("upper(location_city)='" + city.toUpperCase().replace(/'/g,"''") + "'");
+  if (zip) where.push("location_zip='" + zip.replace(/'/g,"''") + "'");
+  if (fromM && fromY) where.push("obligation_end_date_yyyymmdd>='" + fromY + fromM + "01'");
+  if (toM && toY) {
+    var nm = parseInt(toM) === 12 ? 1 : parseInt(toM)+1;
+    var ny = parseInt(toM) === 12 ? parseInt(toY)+1 : parseInt(toY);
+    var pad = nm < 10 ? '0'+nm : String(nm);
+    where.push("obligation_end_date_yyyymmdd<'" + ny + pad + "01'");
+  }
+
+  var url = API + '?$limit=5000&$order=obligation_end_date_yyyymmdd+DESC&$select=location_name,location_city,location_address,location_zip,total_receipts,liquor_receipts,wine_receipts,beer_receipts,obligation_end_date_yyyymmdd,taxpayer_name';
+  if (where.length) url += '&$where=' + encodeURIComponent(where.join(' AND '));
+  return url;
+}
+
+function runQuery() {
+  var btn = document.getElementById('btn-run');
+  btn.textContent = 'Loading…';
+  btn.disabled = true;
+  document.getElementById('err-box').style.display = 'none';
+  document.getElementById('summary').textContent = '';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('placeholder').style.display = 'none';
+  setMetrics(null);
+
+  fetch(buildUrl())
+    .then(function(res) {
+      if (!res.ok) throw new Error('API error ' + res.status);
+      return res.json();
+    })
+    .then(function(data) {
+      allRows = data;
+      sortKey = 'obligation_end_date_yyyymmdd'; sortDir = 'desc'; page = 1;
+      applySort(); setMetrics(data);
+      document.getElementById('summary').textContent = data.length === 5000
+        ? '5,000 records (limit reached)'
+        : data.length.toLocaleString() + ' records returned';
+      if (data.length === 0) {
+        document.getElementById('placeholder').textContent = 'No records matched.';
+        document.getElementById('placeholder').style.display = 'block';
+      } else {
+        renderTable();
+        document.getElementById('results').style.display = 'block';
+      }
+    })
+    .catch(function(e) {
+      var box = document.getElementById('err-box');
+      box.textContent = e.message;
+      box.style.display = 'block';
+      document.getElementById('placeholder').textContent = 'Could not reach Texas Open Data.';
+      document.getElementById('placeholder').style.display = 'block';
+    })
+    .finally(function() {
+      btn.textContent = 'Run query';
+      btn.disabled = false;
+    });
+}
+
+function setMetrics(data) {
+  if (!data || !data.length) {
+    ['m-records','m-total','m-liquor','m-bw'].forEach(function(id) { document.getElementById(id).textContent = '—'; });
+    return;
+  }
+  var total=0, liq=0, bw=0;
+  data.forEach(function(r) {
+    total += parseFloat(r.total_receipts)||0;
+    liq += parseFloat(r.liquor_receipts)||0;
+    bw += (parseFloat(r.beer_receipts)||0) + (parseFloat(r.wine_receipts)||0);
+  });
+  document.getElementById('m-records').textContent = data.length.toLocaleString();
+  document.getElementById('m-total').textContent = fmtMoney(total, true);
+  document.getElementById('m-liquor').textContent = fmtMoney(liq, true);
+  document.getElementById('m-bw').textContent = fmtMoney(bw, true);
+}
+
+function sortBy(key) {
+  if (sortKey === key) sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+  else { sortKey = key; sortDir = 'desc'; }
+  page = 1; applySort(); renderTable();
+}
+
+function applySort() {
+  document.querySelectorAll('thead th').forEach(function(th) { th.classList.remove('active'); });
+  var th = document.getElementById('th-' + sortKey);
+  if (th) th.classList.add('active');
+  allRows.sort(function(a,b) {
+    var av = a[sortKey]||'', bv = b[sortKey]||'';
+    var na = parseFloat(av), nb = parseFloat(bv);
+    if (!isNaN(na) && !isNaN(nb)) { av=na; bv=nb; }
+    if (av < bv) return sortDir==='asc' ? -1 : 1;
+    if (av > bv) return sortDir==='asc' ? 1 : -1;
+    return 0;
+  });
+}
+
+function renderTable() {
+  var start = (page-1)*PER;
+  var slice = allRows.slice(start, start+PER);
+  var tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  slice.forEach(function(r) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis">' + (r.location_name||'—') + '</td>' +
+      '<td>' + (r.location_city||'—') + '</td>' +
+      '<td class="dim" style="max-width:140px;overflow:hidden;text-overflow:ellipsis">' + (r.location_address||'—') + '</td>' +
+      '<td class="dim">' + (r.location_zip||'—') + '</td>' +
+      ['total_receipts','liquor_receipts','wine_receipts','beer_receipts'].map(function(k) {
+        return '<td class="num">' + fmtMoney(r[k], false) + '</td>';
+      }).join('') +
+      '<td class="dim">' + fmtDate(r.obligation_end_date_yyyymmdd) + '</td>';
+    tbody.appendChild(tr);
+  });
+  var total = allRows.length, tp = Math.ceil(total/PER)||1;
+  document.getElementById('page-info').textContent = 'Page ' + page + ' of ' + tp;
+  document.getElementById('page-range').textContent = (start+1) + '–' + Math.min(start+PER,total) + ' of ' + total.toLocaleString();
+  document.getElementById('btn-prev').disabled = page <= 1;
+  document.getElementById('btn-next').disabled = page >= tp;
+}
+
+function clearAll() {
+  ['f-taxpayer','f-city','f-zip'].forEach(function(id) { document.getElementById(id).value=''; });
+  ['f-from-month','f-from-year','f-to-month','f-to-year'].forEach(function(id) { document.getElementById(id).selectedIndex=0; });
+  allRows=[]; page=1;
+  document.getElementById('results').style.display='none';
+  document.getElementById('err-box').style.display='none';
+  document.getElementById('summary').textContent='';
+  document.getElementById('placeholder').textContent='Set filters above and tap Run query to fetch live data.';
+  document.getElementById('placeholder').style.display='block';
+  setMetrics(null);
+}
+
+// Wire up buttons and sort headers
+document.getElementById('btn-run').addEventListener('click', runQuery);
+document.getElementById('btn-clear').addEventListener('click', clearAll);
+document.getElementById('btn-prev').addEventListener('click', function() { page = Math.max(1,page-1); renderTable(); });
+document.getElementById('btn-next').addEventListener('click', function() { page = Math.min(Math.ceil(allRows.length/PER),page+1); renderTable(); });
+['location_name','location_city','total_receipts','liquor_receipts','wine_receipts','beer_receipts','obligation_end_date_yyyymmdd'].forEach(function(k) {
+  var th = document.getElementById('th-'+k);
+  if (th) th.addEventListener('click', function() { sortBy(k); });
+});
+['f-taxpayer','f-city','f-zip'].forEach(function(id) {
+  document.getElementById(id).addEventListener('keydown', function(e) { if(e.key==='Enter') runQuery(); });
+});
+</script>
+</body>
+</html>

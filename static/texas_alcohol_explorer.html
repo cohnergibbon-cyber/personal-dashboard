@@ -53,11 +53,14 @@ tbody td.dim { color: #6b6b68; font-size: 11px; }
 .pager button:disabled { opacity: 0.3; }
 .pager-right { margin-left: auto; }
 #results { display: none; }
-.city-tbl { width:100%; border-collapse:collapse; font-size:12px; }
-.city-tbl th { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:#6b6b68; padding:6px 8px; text-align:right; border-bottom:1px solid #e0e0de; white-space:nowrap; }
-.city-tbl th:first-child { text-align:left; }
-.city-tbl td { padding:7px 8px; border-bottom:1px solid #f0f0ee; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.city-tbl td:first-child { text-align:left; font-weight:500; font-size:12px; }
+.city-tbl { width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed; }
+.city-tbl th { font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:#6b6b68; padding:5px 4px; text-align:right; border-bottom:1px solid #e0e0de; white-space:nowrap; }
+.city-tbl th:first-child { text-align:left; width:35%; }
+.city-tbl th:nth-child(2), .city-tbl th:nth-child(3) { width:16%; }
+.city-tbl th:nth-child(4) { width:17%; }
+.city-tbl th:nth-child(5) { width:16%; }
+.city-tbl td { padding:6px 4px; border-bottom:1px solid #f0f0ee; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; font-size:11px; overflow:hidden; text-overflow:ellipsis; }
+.city-tbl td:first-child { text-align:left; font-weight:500; font-size:11px; }
 .city-tbl tr:last-child td { border-bottom:none; }
 .city-tbl tr:hover { background:#f9f9f7; }
 .city-opt { display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;font-size:13px;border-radius:4px;margin:1px 4px; }
@@ -757,11 +760,17 @@ function buildCitySummary(cyData, pyMapData) {
   var html = '<table class="city-tbl"><thead><tr><th>City</th><th>CY</th><th>PY</th><th>$ Var</th><th>% Var</th></tr></thead><tbody>';
   top.forEach(function(r, i) {
     var city = r.city.charAt(0) + r.city.slice(1).toLowerCase();
+    // Extra compact money for city table
+    function cm(v) {
+      var n=parseFloat(v); if(isNaN(n)||n===0) return n===0?'$0':'—';
+      if(Math.abs(n)>=1000000) return '$'+(n/1000000).toFixed(1)+'M';
+      return '$'+Math.round(n/1000)+'K';
+    }
     html += '<tr>'+
-      '<td><span style="color:#999;font-size:10px;margin-right:6px;">'+(i+1)+'</span>'+city+'</td>'+
-      '<td>'+fmtMoney(r.cy,true)+'</td>'+
-      '<td>'+(r.py?fmtMoney(r.py,true):'—')+'</td>'+
-      '<td class="'+(r.varAmt>=0?'pos':'neg')+'">'+(r.varAmt>=0?'+':'')+fmtMoney(r.varAmt,true)+'</td>'+
+      '<td><span style="color:#999;font-size:9px;margin-right:4px;">'+(i+1)+'</span>'+city+'</td>'+
+      '<td>'+cm(r.cy)+'</td>'+
+      '<td>'+(r.py?cm(r.py):'—')+'</td>'+
+      '<td class="'+(r.varAmt>=0?'pos':'neg')+'">'+(r.varAmt>=0?'+':'')+cm(r.varAmt)+'</td>'+
       '<td class="'+(r.varPct!==null?r.varPct>=0?'pos':'neg':'')+'">'+(r.varPct!==null?(r.varPct>=0?'+':'')+r.varPct.toFixed(1)+'%':'—')+'</td>'+
       '</tr>';
   });

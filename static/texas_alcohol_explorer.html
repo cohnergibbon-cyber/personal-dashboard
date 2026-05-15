@@ -211,6 +211,16 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
 .venue-stat strong { color: var(--text); font-weight: 500; }
 .map-status { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.04em; margin-bottom: 10px; }
 .venue-period { font-family:var(--mono); font-size:10px; color:var(--text3); letter-spacing:0.04em; }
+
+.radius-row { margin-top: 14px; }
+.radius-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.radius-lbl { font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); }
+.radius-val { font-size: 12px; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+.radius-pills { display: flex; gap: 6px; }
+.radius-pill { flex: 1; height: 36px; border: 1.5px solid var(--border2); border-radius: 20px; background: transparent; color: var(--text2); font-size: 12px; font-family: var(--mono); font-weight: 600; cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent; }
+.radius-pill.active { background: var(--accent); border-color: var(--accent); color: #F5F0E8; }
+.radius-pill:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+.radius-pill:active { opacity: 0.75; }
 </style>
 </head>
 <body>
@@ -329,23 +339,10 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
   <div class="wrap">
     <div class="map-fcard">
       <div class="section-label">Find nearby</div>
-      <button class="loc-btn" id="loc-btn" onclick="findNearby()">
+      <button class="loc-btn" onclick="findNearby()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
         Use my location
       </button>
-      <div class="radius-row">
-        <div class="radius-label-row">
-          <span class="radius-lbl">Radius</span>
-          <span class="radius-val" id="radius-val">1 mi</span>
-        </div>
-        <div class="radius-pills">
-          <button class="radius-pill active" onclick="setRadius(1)">1 mi</button>
-          <button class="radius-pill" onclick="setRadius(2)">2 mi</button>
-          <button class="radius-pill" onclick="setRadius(3)">3 mi</button>
-          <button class="radius-pill" onclick="setRadius(4)">4 mi</button>
-          <button class="radius-pill" onclick="setRadius(5)">5 mi</button>
-        </div>
-      </div>
     </div>
 
     <div id="map-status" class="map-status" style="display:none;"></div>
@@ -1177,12 +1174,24 @@ function renderNearbyCards(geocoded, maxMi) {
   var html='';
   filtered.forEach(function(v,i){
     var r=v.record;
-    var sales=fmtMoney(parseFloat(r.total_receipts)||0,false);
+    var cy=parseFloat(r.total_receipts)||0;
+    var py=parseFloat(r._py_total)||0;
+    var hasVary = r._py_total!==undefined && r._py_total!==null;
+    var varAmt = hasVary ? cy-py : null;
+    var varPct = (varAmt!==null&&py>0) ? varAmt/py*100 : null;
+    var varHtml='';
+    if(varAmt!==null){
+      var cls=varAmt>=0?'pos':'neg';
+      varHtml='<div class="venue-stat '+cls+'">'+(varAmt>=0?'+':'')+fmtMoney(varAmt,false)+'</div>'
+        +'<div class="venue-stat '+cls+'">'+(varPct!==null?(varPct>=0?'+':'')+varPct.toFixed(1)+'%':'—')+'</div>';
+    }
     html+='<div class="venue-card" data-idx="'+i+'">'
       +'<div class="venue-name">'+(r.location_name||'')+'</div>'
       +'<div class="venue-addr">'+(r.location_address||'')+(r.location_city?', '+r.location_city:'')+' '+(r.location_zip||'')+'</div>'
       +'<div class="venue-stats">'
-      +'<div class="venue-stat"><span class="venue-period">'+periodLabel+'</span> <strong>'+sales+'</strong></div>'
+      +'<div class="venue-stat"><span class="venue-period">'+periodLabel+'</span> <strong>'+fmtMoney(cy,false)+'</strong></div>'
+      +(hasVary?'<div class="venue-stat" style="color:var(--text3)">PY '+fmtMoney(py,false)+'</div>':'')
+      +varHtml
       +'<div class="venue-stat" style="color:var(--text3)">'+v.dist.toFixed(1)+' mi</div>'
       +'</div></div>';
   });
@@ -1249,8 +1258,37 @@ function findNearby(){
             } else { missing++; }
           });
           if(missing) console.log('[Nearby] '+missing+' venues missing from geo lookup');
-          _nearbyGeocoded=geocoded;
-          renderNearbyCards(geocoded, radiusMi);
+
+          // Fetch PY data for same venues
+          var pyMonth=parseInt(month)===1?12:parseInt(month)-1;
+          var pyYear=parseInt(month)===1?parseInt(year)-1:parseInt(year);
+          var pyM=String(pyMonth).padStart(2,'0');
+          var pyY=String(pyYear);
+          var pyNm=pyMonth===12?1:pyMonth+1;
+          var pyNy=pyMonth===12?pyYear+1:pyYear;
+          var pyPad=pyNm<10?'0'+pyNm:String(pyNm);
+          var pyWhere=[
+            "upper(location_city)='"+city.replace(/'/g,"''")+"'",
+            "obligation_end_date_yyyymmdd>='"+pyY+'-'+pyM+"-01T00:00:00.000'",
+            "obligation_end_date_yyyymmdd<'"+pyNy+'-'+pyPad+"-01T00:00:00.000'"
+          ];
+          var pyUrl='https://data.texas.gov/resource/naix-2893.json?$limit=500&$select=location_name,location_address,location_zip,total_receipts&$where='+encodeURIComponent(pyWhere.join(' AND '));
+          return fetch(pyUrl).then(function(r){return r.json();}).then(function(pyVenues){
+            var pyMap={};
+            (pyVenues||[]).forEach(function(p){
+              var k=(p.location_name||'')+'|'+(p.location_zip||'');
+              pyMap[k]=parseFloat(p.total_receipts)||0;
+            });
+            geocoded.forEach(function(v){
+              var k=(v.record.location_name||'')+'|'+(v.record.location_zip||'');
+              if(pyMap[k]!==undefined) v.record._py_total=pyMap[k];
+            });
+            _nearbyGeocoded=geocoded;
+            renderNearbyCards(geocoded, radiusMi);
+          }).catch(function(){
+            _nearbyGeocoded=geocoded;
+            renderNearbyCards(geocoded, radiusMi);
+          });
         });
       });
     })

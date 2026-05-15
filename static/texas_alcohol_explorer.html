@@ -1160,15 +1160,16 @@ function onYTDChange(cb) {
 }
 // Wire up
 initCityDropdown();
-var _btnRun=document.getElementById('btn-run'); if(_btnRun)_btnRun.addEventListener('click',runQuery);
-document.getElementById('btn-clear').addEventListener('click',clearAll);
-document.getElementById('btn-prev').addEventListener('click',function(){
-  if(page>1){ page--; renderTable(); }
-});
-document.getElementById('btn-next').addEventListener('click',function(){
-  var tp=Math.ceil(allRows.length/PER)||1;
-  if(page<tp){ page++; renderTable(); }
-});
+(function(){
+  var btnRun=document.getElementById('btn-run');
+  var btnClear=document.getElementById('btn-clear');
+  var btnPrev=document.getElementById('btn-prev');
+  var btnNext=document.getElementById('btn-next');
+  if(btnRun) btnRun.addEventListener('click',runQuery);
+  if(btnClear) btnClear.addEventListener('click',clearAll);
+  if(btnPrev) btnPrev.addEventListener('click',function(){ if(page>1){page--;renderTable();} });
+  if(btnNext) btnNext.addEventListener('click',function(){ var tp=Math.ceil(allRows.length/PER)||1; if(page<tp){page++;renderTable();} });
+})();
 
 
 // sort handled by onclick on th elements

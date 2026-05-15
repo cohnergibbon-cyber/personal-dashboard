@@ -66,7 +66,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 #city-panel { display: none; margin-bottom: 12px; }
 .cpanel { background: var(--s1); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; overflow: hidden; }
 .section-label { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
-.city-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.city-tbl { width: 100%; border-collapse: collapse; }
 .city-tbl th { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; padding: 0 5px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .city-tbl th:first-child { text-align: left; width: 33%; }
 .city-tbl th:nth-child(2) { width: 17%; }
@@ -919,7 +919,7 @@ function openHistory(locationName, taxpayerName, rowPeriod, locationCity, locati
 
       html+='</tbody></table></div>';
 
-      html+='<div class="hist-section"><div class="hist-title">Full history</div><div class="hist-wrap"><table>';
+      html+='<div class="hist-section"><div class="hist-title">Full history</div><div class="hist-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="min-width:420px">';
       html+='<thead><tr><th>Period</th><th class="num">Total</th><th class="num">Liquor</th><th class="num">Wine</th><th class="num">Beer</th></tr></thead><tbody>';
       data.forEach(function(r){
         var p=parsePeriod(r.obligation_end_date_yyyymmdd);
@@ -989,6 +989,7 @@ function buildCitySummary(cyData, pyMapData) {
     +'<th style="text-align:right;width:22%">$ Var</th>'
     +'<th style="text-align:right;width:16%">%</th>'
     +'</tr></thead><tbody>';
+  var isMob = window.innerWidth < 640;
   top.forEach(function(r, i) {
     var city = r.city.charAt(0) + r.city.slice(1).toLowerCase();
     // Extra compact money for city table
@@ -998,11 +999,10 @@ function buildCitySummary(cyData, pyMapData) {
       return '$'+Math.round(n/1000)+'K';
     }
     html += '<tr>'+
-      '<td><span style="color:#999;font-size:9px;margin-right:4px;">'+(i+1)+'</span>'+city+'</td>'+
-      '<td>'+cm(r.cy)+'</td>'+
-      '<td>'+(r.py?cm(r.py):'—')+'</td>'+
-      '<td class="'+(r.varAmt>=0?'pos':'neg')+'">'+(r.varAmt>=0?'+':'')+cm(r.varAmt)+'</td>'+
-      '<td class="'+(r.varPct!==null?r.varPct>=0?'pos':'neg':'')+'">'+(r.varPct!==null?(r.varPct>=0?'+':'')+r.varPct.toFixed(1)+'%':'—')+'</td>'+
+      '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px"><span style="color:#999;font-size:9px;margin-right:4px;">'+(i+1)+'</span>'+city+'</td>'+
+      '<td style="text-align:right">'+cm(r.cy)+'</td>'+
+      (isMob?'':'<td style="text-align:right" class="'+(r.varAmt>=0?'pos':'neg')+'">'+(r.varAmt>=0?'+':'')+cm(r.varAmt)+'</td>'+
+      '<td style="text-align:right" class="'+(r.varPct!==null?r.varPct>=0?'pos':'neg':'')+'">'+(r.varPct!==null?(r.varPct>=0?'+':'')+r.varPct.toFixed(1)+'%':'—')+'</td>')+
       '</tr>';
   });
   html += '</tbody></table>';

@@ -1160,7 +1160,7 @@ function onYTDChange(cb) {
 }
 // Wire up
 initCityDropdown();
-document.getElementById('btn-run').addEventListener('click',runQuery);
+var _btnRun=document.getElementById('btn-run'); if(_btnRun)_btnRun.addEventListener('click',runQuery);
 document.getElementById('btn-clear').addEventListener('click',clearAll);
 document.getElementById('btn-prev').addEventListener('click',function(){
   if(page>1){ page--; renderTable(); }
@@ -1183,12 +1183,13 @@ var _nearbyGeocoded = [];
 var _currentRadius = 1;
 
 function setRadius(val) {
-  _currentRadius = val;
-  document.getElementById('radius-val').textContent = val + ' mi';
+  _currentRadius = val || 1;
+  var display = document.getElementById('radius-val');
+  if (display) display.textContent = _currentRadius + ' mi';
   document.querySelectorAll('.radius-pill').forEach(function(btn, i) {
-    btn.classList.toggle('active', i + 1 === val);
+    btn.classList.toggle('active', i + 1 === _currentRadius);
   });
-  if (_nearbyGeocoded.length) renderNearbyCards(_nearbyGeocoded, val);
+  if (_nearbyGeocoded && _nearbyGeocoded.length) renderNearbyCards(_nearbyGeocoded, _currentRadius);
 }
 
 function haverDist(lat1, lng1, lat2, lng2) {

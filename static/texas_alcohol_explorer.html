@@ -35,7 +35,8 @@
 
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { background: var(--bg); overflow-x: hidden; }
+html { background: var(--bg); overflow-x: hidden; box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
 body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; padding-bottom: calc(var(--tab-h) + var(--safe) + 8px); }
 
 /* ─── Tab bar ─── */
@@ -76,9 +77,17 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 .city-tbl td { font-size: 12px; padding: 7px 5px; text-align: right; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; color: var(--text); }
 .city-tbl td:first-child { text-align: left; font-size: 13px; font-weight: 500; }
 .city-tbl tr:last-child td { border-bottom: none; }
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .city-tbl th:nth-child(3), .city-tbl td:nth-child(3) { display: none; }
-  .city-tbl th:first-child { width: 38%; }
+  .city-tbl th:first-child { width: 42%; }
+  .fgrid { grid-template-columns: 1fr; }
+  .modal { border-radius: var(--r-sm); }
+  .modal-cards { grid-template-columns: repeat(2,1fr); }
+  .hdr-title { font-size: 28px; }
+  .wrap { padding: 0 10px; }
+  .fcard { padding: 12px; }
+  .map-fcard { padding: 12px; }
+  .radius-pill { height: 38px; font-size: 11px; }
 }
 
 /* ─── Filter card ─── */
@@ -159,9 +168,9 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
 .pg-right { margin-left: auto; }
 
 /* Modal */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; overflow-y: auto; padding: 20px 14px; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; overflow-y: auto; padding: 8px; -webkit-overflow-scrolling: touch; }
 .modal-overlay.open { display: block; }
-.modal { background: var(--s1); border-radius: var(--r); max-width: 860px; margin: 0 auto; padding: 20px; position: relative; border: 1px solid var(--border); }
+.modal { background: var(--s1); border-radius: var(--r); max-width: 860px; width: 100%; margin: 0 auto; padding: 16px; position: relative; border: 1px solid var(--border); box-sizing: border-box; overflow-x: hidden; }
 .modal-x { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 50%; background: var(--s2); border: 1px solid var(--border2); color: var(--text2); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
 .modal-name { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 3px; padding-right: 40px; }
 .modal-sub { font-size: 12px; color: var(--text2); margin-bottom: 3px; }
@@ -210,6 +219,17 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
 .venue-stat { font-family: var(--mono); font-size: 11px; color: var(--text3); }
 .venue-stat strong { color: var(--text); font-weight: 500; }
 .map-status { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.04em; margin-bottom: 10px; }
+
+/* Nearby radius pills */
+.radius-row { margin-top: 14px; }
+.radius-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.radius-lbl { font-size: 11px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); }
+.radius-val { font-size: 12px; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+.radius-pills { display: flex; gap: 6px; }
+.radius-pill { flex: 1; height: 36px; border: 1.5px solid var(--border2); border-radius: 20px; background: transparent; color: var(--text2); font-size: 12px; font-family: var(--mono); font-weight: 600; cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent; }
+.radius-pill.active { background: var(--accent); border-color: var(--accent); color: #F5F0E8; }
+.radius-pill:active { opacity: 0.75; }
+.venue-period { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.04em; }
 </style>
 </head>
 <body>
@@ -295,7 +315,7 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
         <span class="tbl-hint">Tap any row for history</span>
         <button class="btn-sm" onclick="exportMainCSV()">Export CSV</button>
       </div>
-      <div class="tbl-wrap">
+      <div class="tbl-wrap" id="tbl-wrap">
         <table>
           <thead><tr>
             <th id="th-location_name">Location</th>
@@ -309,6 +329,7 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
           <tbody id="tbody"></tbody>
         </table>
       </div>
+      <div id="card-list" style="display:none;"></div>
       <div class="pager">
         <button class="pg-btn" id="btn-prev">← Prev</button>
         <span class="pg-info" id="page-info"></span>
@@ -328,10 +349,23 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
   <div class="wrap">
     <div class="map-fcard">
       <div class="section-label">Find nearby</div>
-      <button class="loc-btn" onclick="findNearby()">
+      <button class="loc-btn" id="loc-btn" onclick="findNearby()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
         Use my location
       </button>
+      <div class="radius-row">
+        <div class="radius-label-row">
+          <span class="radius-lbl">Radius</span>
+          <span class="radius-val" id="radius-val">1 mi</span>
+        </div>
+        <div class="radius-pills">
+          <button class="radius-pill active" onclick="setRadius(1)">1 mi</button>
+          <button class="radius-pill" onclick="setRadius(2)">2 mi</button>
+          <button class="radius-pill" onclick="setRadius(3)">3 mi</button>
+          <button class="radius-pill" onclick="setRadius(4)">4 mi</button>
+          <button class="radius-pill" onclick="setRadius(5)">5 mi</button>
+        </div>
+      </div>
     </div>
 
     <div id="map-status" class="map-status" style="display:none;"></div>
@@ -651,29 +685,52 @@ function applySort() {
 }
 
 function renderTable() {
+  var isMobile = (window.innerWidth || document.documentElement.clientWidth) < 640;
   var start=(page-1)*PER, slice=allRows.slice(start,start+PER);
+  document.getElementById('results').style.display='block';
+  var tblWrap = document.getElementById('tbl-wrap');
+  var cardList = document.getElementById('card-list');
+  if(tblWrap) tblWrap.style.display = isMobile ? 'none' : '';
+  if(cardList) cardList.style.display = isMobile ? '' : 'none';
+  var mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var periodLabel=(selectedMonth&&selectedYear)?mNames[parseInt(selectedMonth)-1]+' '+selectedYear:'';
   var tbody=document.getElementById('tbody'); tbody.innerHTML='';
+  if(cardList) cardList.innerHTML='';
   slice.forEach(function(r) {
-    var tr=document.createElement('tr');
     var cyVal=parseFloat(r.total_receipts)||0;
     var pyKey=(r.location_name||'')+'|'+(r.location_zip||'');
     var pyVal=pyMap[pyKey]!==undefined?pyMap[pyKey]:null;
     var varAmt=pyVal!==null?cyVal-pyVal:null;
     var varPct=(varAmt!==null&&pyVal&&pyVal!==0)?varAmt/pyVal*100:null;
     r._py_total=pyVal; r._var_amt=varAmt; r._var_pct=varPct;
-
-    (function(loc,tax,period,city,zip,addr){
-      tr.addEventListener('click',function(){openHistory(loc,tax,period,city,zip,addr);});
-    })(r.location_name||'',r.taxpayer_name||'',r.obligation_end_date_yyyymmdd||'',r.location_city||'',r.location_zip||'',r.location_address||'');
-
-    tr.innerHTML=
-      '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;font-weight:500">'+(r.location_name||'—')+'</td>'+
-      '<td>'+((r.location_city||'—').replace('FT WORTH','FORT WORTH'))+'</td>'+
-      '<td class="num">'+fmtMoney(cyVal,false)+'</td>'+
-      '<td class="num dim">'+(pyVal!==null?fmtMoney(pyVal,false):'—')+'</td>'+
-      '<td class="num '+(varAmt!==null?varClass(varAmt):'')+'">'+(varAmt!==null?(varAmt>=0?'+':'')+fmtMoney(varAmt,false):'—')+'</td>'+
-      '<td class="num '+(varPct!==null?varClass(varPct):'')+'">'+(varPct!==null?fmtPct(varPct):'—')+'</td>';
-    tbody.appendChild(tr);
+    var city=(r.location_city||'—').replace('FT WORTH','FORT WORTH');
+    var args=[r.location_name||'',r.taxpayer_name||'',r.obligation_end_date_yyyymmdd||'',r.location_city||'',r.location_zip||'',r.location_address||''];
+    if(isMobile && cardList){
+      var varHtml='';
+      if(varAmt!==null){var cls=varClass(varAmt);varHtml='<div class="venue-stat '+cls+'">'+(varAmt>=0?'+':'')+fmtMoney(varAmt,false)+' ('+fmtPct(varPct)+')</div>';}
+      var card=document.createElement('div');
+      card.className='venue-card';
+      card.innerHTML=
+        '<div class="venue-name">'+(r.location_name||'—')+'</div>'+
+        '<div class="venue-addr">'+(r.location_address||'')+(city&&city!=='—'?', '+city:'')+' '+(r.location_zip||'')+'</div>'+
+        '<div class="venue-stats">'+
+          '<div class="venue-stat">'+(periodLabel?'<span class="venue-period">'+periodLabel+'</span> ':'')+
+          '<strong>'+fmtMoney(cyVal,false)+'</strong></div>'+varHtml+
+        '</div>';
+      (function(a){card.addEventListener('click',function(){openHistory.apply(null,a);});})(args);
+      cardList.appendChild(card);
+    } else {
+      var tr=document.createElement('tr');
+      (function(a){tr.addEventListener('click',function(){openHistory.apply(null,a);});})(args);
+      tr.innerHTML=
+        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;font-weight:500">'+(r.location_name||'—')+'</td>'+
+        '<td>'+city+'</td>'+
+        '<td class="num">'+fmtMoney(cyVal,false)+'</td>'+
+        '<td class="num dim">'+(pyVal!==null?fmtMoney(pyVal,false):'—')+'</td>'+
+        '<td class="num '+(varAmt!==null?varClass(varAmt):'')+'">'+(varAmt!==null?(varAmt>=0?'+':'')+fmtMoney(varAmt,false):'—')+'</td>'+
+        '<td class="num '+(varPct!==null?varClass(varPct):'')+'">'+(varPct!==null?fmtPct(varPct):'—')+'</td>';
+      tbody.appendChild(tr);
+    }
   });
   var total=allRows.length,tp=Math.ceil(total/PER)||1;
   document.getElementById('page-info').textContent='Page '+page+' of '+tp;
@@ -1102,96 +1159,129 @@ document.getElementById('btn-next').addEventListener('click',function(){page=Mat
 
 
 
+var _nearbyGeocoded = [];
+var _currentRadius = 1;
+
+function setRadius(val) {
+  _currentRadius = val;
+  document.getElementById('radius-val').textContent = val + ' mi';
+  document.querySelectorAll('.radius-pill').forEach(function(btn, i) {
+    btn.classList.toggle('active', i + 1 === val);
+  });
+  if (_nearbyGeocoded.length) renderNearbyCards(_nearbyGeocoded, val);
+}
+
+function haverDist(lat1, lng1, lat2, lng2) {
+  var R=3958.8, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function addrKey(addr, city, zip) {
+  return ((addr||'')+'|'+(city||'')+'|'+((zip||'').slice(0,5))).toUpperCase().trim();
+}
+
+function renderNearbyCards(geocoded, maxMi) {
+  var status=document.getElementById('map-status');
+  var results=document.getElementById('map-results');
+  var _d=new Date(); _d.setMonth(_d.getMonth()-2);
+  var mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var periodLabel=mNames[_d.getMonth()]+' '+_d.getFullYear();
+  var filtered=geocoded.filter(function(v){return v.dist<=maxMi;});
+  filtered.sort(function(a,b){return a.dist-b.dist;});
+  if(!filtered.length){
+    status.textContent='No venues within '+maxMi+' mi — try a larger radius.';
+    results.innerHTML=''; return;
+  }
+  status.textContent=filtered.length+' venue'+(filtered.length!==1?'s':'')+' within '+maxMi+' mi · '+periodLabel;
+  var html='';
+  filtered.forEach(function(v,i){
+    var r=v.record;
+    var sales=fmtMoney(parseFloat(r.total_receipts)||0,false);
+    html+='<div class="venue-card" data-idx="'+i+'">'
+      +'<div class="venue-name">'+(r.location_name||'')+'</div>'
+      +'<div class="venue-addr">'+(r.location_address||'')+(r.location_city?', '+r.location_city:'')+' '+(r.location_zip||'')+'</div>'
+      +'<div class="venue-stats">'
+      +'<div class="venue-stat"><span class="venue-period">'+periodLabel+'</span> <strong>'+sales+'</strong></div>'
+      +'<div class="venue-stat" style="color:var(--text3)">'+v.dist.toFixed(1)+' mi</div>'
+      +'</div></div>';
+  });
+  results.innerHTML=html;
+  window._nearbyFiltered=filtered;
+  results.querySelectorAll('.venue-card').forEach(function(card){
+    card.addEventListener('click',function(){
+      var v=window._nearbyFiltered[parseInt(this.getAttribute('data-idx'))];
+      if(v){var r=v.record;openHistory(r.location_name||'',r.taxpayer_name||'',r.obligation_end_date_yyyymmdd||'',r.location_city||'',r.location_zip||'',r.location_address||'');}
+    });
+  });
+}
+
 function findNearby(){
   var status=document.getElementById('map-status');
   var results=document.getElementById('map-results');
+  _nearbyGeocoded=[];
   status.style.display='block';
-  status.textContent='Getting your location...';
+  status.textContent='Getting your location…';
   results.innerHTML='';
   if(!navigator.geolocation){status.textContent='Location not supported.';return;}
+  var radiusMi=_currentRadius||1;
+
   navigator.geolocation.getCurrentPosition(function(pos){
-    var lat=pos.coords.latitude, lng=pos.coords.longitude;
-    status.textContent='Finding nearby venues...';
+    var userLat=pos.coords.latitude, userLng=pos.coords.longitude;
+    status.textContent='Loading venue coordinates…';
 
-    // Auto-detect most recent available period (~2 months ago)
-    var _d=new Date(); _d.setMonth(_d.getMonth()-2);
-    var month=String(_d.getMonth()+1).padStart(2,'0');
-    var year=String(_d.getFullYear());
-    var mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var periodLabel=mNames[parseInt(month)-1]+' '+year;
-    var nm=parseInt(month)===12?1:parseInt(month)+1;
-    var ny=parseInt(month)===12?parseInt(year)+1:parseInt(year);
-    var pad=nm<10?'0'+nm:String(nm);
-    var dateWhere=[
-      "obligation_end_date_yyyymmdd>='"+year+"-"+month+"-01T00:00:00.000'",
-      "obligation_end_date_yyyymmdd<'"+ny+"-"+pad+"-01T00:00:00.000'"
-    ];
+    fetch('/tx_venues_geo.json')
+    .then(function(r){
+      if(!r.ok) throw new Error('tx_venues_geo.json not found — run geocode_tabc.py first');
+      return r.json();
+    })
+    .then(function(geoLookup){
+      status.textContent='Finding your city…';
+      return fetch('https://nominatim.openstreetmap.org/reverse?lat='+userLat+'&lon='+userLng+'&format=json&zoom=10',
+        {headers:{'Accept-Language':'en'}})
+      .then(function(r){return r.json();})
+      .then(function(geo){
+        var rawCity=(geo.address&&(geo.address.city||geo.address.town||geo.address.village||geo.address.suburb))||'';
+        var city=rawCity.toUpperCase().trim();
+        if(!city) throw new Error('Could not determine city');
+        status.textContent='Fetching venues in '+rawCity+'…';
 
-    function distMiles(rlat,rlng){
-      var dlat=(parseFloat(rlat)-lat)*69;
-      var dlng=(parseFloat(rlng)-lng)*69*Math.cos(lat*Math.PI/180);
-      return Math.sqrt(dlat*dlat+dlng*dlng);
-    }
+        var _d=new Date(); _d.setMonth(_d.getMonth()-2);
+        var month=String(_d.getMonth()+1).padStart(2,'0');
+        var year=String(_d.getFullYear());
+        var nm=parseInt(month)===12?1:parseInt(month)+1;
+        var ny=parseInt(month)===12?parseInt(year)+1:parseInt(year);
+        var pad=nm<10?'0'+nm:String(nm);
+        var where=[
+          "upper(location_city)='"+city.replace(/'/g,"''")+"'",
+          "obligation_end_date_yyyymmdd>='"+year+'-'+month+"-01T00:00:00.000'",
+          "obligation_end_date_yyyymmdd<'"+ny+'-'+pad+"-01T00:00:00.000'"
+        ];
+        var url='https://data.texas.gov/resource/naix-2893.json?$limit=500&$select=location_name,location_address,location_city,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
 
-    function buildUrl(radiusMiles){
-      var latDelta=radiusMiles/69;
-      var lngDelta=radiusMiles/(69*Math.cos(lat*Math.PI/180));
-      var where=dateWhere.concat([
-        "location_latitude>='"+( lat-latDelta).toFixed(6)+"'",
-        "location_latitude<='"+( lat+latDelta).toFixed(6)+"'",
-        "location_longitude>='"+( lng-lngDelta).toFixed(6)+"'",
-        "location_longitude<='"+( lng+lngDelta).toFixed(6)+"'"
-      ]);
-      return 'https://data.texas.gov/resource/naix-2893.json?$limit=200&$select=location_name,location_city,location_address,location_zip,location_latitude,location_longitude,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
-    }
-
-    function renderVenues(data){
-      // Sort by distance
-      data.sort(function(a,b){
-        return distMiles(a.location_latitude,a.location_longitude)-distMiles(b.location_latitude,b.location_longitude);
-      });
-      status.textContent=data.length+' venues near you · '+periodLabel;
-      window._mapVenues=data;
-      var html='';
-      data.forEach(function(r,i){
-        var sales=fmtMoney(parseFloat(r.total_receipts)||0,false);
-        var dm=distMiles(r.location_latitude,r.location_longitude).toFixed(1);
-        html+='<div class="venue-card" data-idx="'+i+'">'
-          +'<div class="venue-tooltip">'+periodLabel+': '+sales+'</div>'
-          +'<div class="venue-name">'+(r.location_name||'')+'</div>'
-          +'<div class="venue-addr">'+(r.location_address||'')+(r.location_city?', '+r.location_city:'')+' '+(r.location_zip||'')+'</div>'
-          +'<div class="venue-stats">'
-          +'<div class="venue-stat"><span class="venue-period">'+periodLabel+'</span> <strong>'+sales+'</strong></div>'
-          +'<div class="venue-stat" style="color:var(--text3);font-size:11px;">'+dm+' mi away</div>'
-          +'</div>'
-          +'</div>';
-      });
-      results.innerHTML=html;
-      results.querySelectorAll('.venue-card').forEach(function(card){
-        card.addEventListener('click',function(){
-          var r=window._mapVenues[parseInt(this.getAttribute('data-idx'))];
-          if(r) openHistory(r.location_name||'',r.taxpayer_name||'',r.obligation_end_date_yyyymmdd||'',r.location_city||'',r.location_zip||'',r.location_address||'');
+        return fetch(url).then(function(r){return r.json();}).then(function(venues){
+          if(!venues||!venues.length) throw new Error('No venues found in '+rawCity);
+          var geocoded=[], missing=0;
+          venues.forEach(function(v){
+            var key=addrKey(v.location_address||'',v.location_city||'',v.location_zip||'');
+            var coord=geoLookup[key];
+            if(coord){
+              var dist=haverDist(userLat,userLng,coord[0],coord[1]);
+              if(dist<=5) geocoded.push({record:v,lat:coord[0],lng:coord[1],dist:dist});
+            } else { missing++; }
+          });
+          if(missing>0) console.log('[Nearby] '+missing+' venues missing from geo lookup');
+          _nearbyGeocoded=geocoded;
+          renderNearbyCards(geocoded, radiusMi);
         });
       });
-    }
+    })
+    .catch(function(e){status.textContent='Error: '+e.message;});
 
-    // Try 5-mile radius first, fall back to 15 miles if empty
-    fetch(buildUrl(5)).then(function(r){return r.json();}).then(function(data){
-      if(data&&data.length>0){
-        renderVenues(data);
-      } else {
-        status.textContent='Widening search...';
-        fetch(buildUrl(15)).then(function(r){return r.json();}).then(function(data2){
-          if(data2&&data2.length>0){
-            renderVenues(data2);
-          } else {
-            status.textContent='No venues found near you. Try a different location.';
-          }
-        }).catch(function(){status.textContent='Could not fetch venue data.';});
-      }
-    }).catch(function(){status.textContent='Could not fetch venue data.';});
-
-  },function(){status.textContent='Location access denied.';},{timeout:10000});
+  },function(err){
+    var msgs={1:'Location access denied.',2:'Position unavailable.',3:'Timed out.'};
+    status.textContent=msgs[err.code]||'Location error.';
+  },{timeout:15000,enableHighAccuracy:true});
 }
 
 // Tab switching

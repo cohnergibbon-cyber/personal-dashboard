@@ -237,6 +237,8 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
 .addr-input::placeholder{color:var(--text3);}
 .addr-btn{height:40px;padding:0 16px;background:var(--s2);border:1.5px solid var(--border2);border-radius:var(--r-sm);color:var(--text2);font-size:12px;font-family:var(--mono);font-weight:600;cursor:pointer;transition:all 0.15s;}
 .addr-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.addr-hint { font-size: 11px; color: var(--text3); font-family: var(--mono); margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -361,10 +363,11 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
       </button>
       <div class="or-divider"><span>or</span></div>
       <div class="addr-row">
-        <input type="text" id="addr-input" class="addr-input" placeholder="Enter address, city, or ZIP"
+        <input type="text" id="addr-input" class="addr-input" placeholder="Enter address, city, or ZIP (no suite number)"
                onkeydown="if(event.key==='Enter')findNearbyByAddress()">
         <button class="addr-btn" onclick="findNearbyByAddress()">Search</button>
       </div>
+      <div class="addr-hint">Tip: omit suite numbers for best results — e.g. "5001 Belt Line Rd, Dallas"</div>
       <div class="radius-row">
         <div class="radius-label-row">
           <span class="radius-lbl">Radius</span>
@@ -1222,10 +1225,10 @@ function renderNearbyCards(geocoded, maxMi) {
   var sortWrap=document.getElementById('sort-row-wrap');
   if(sortWrap) sortWrap.style.display=filtered.length?'flex':'none';
   if(!filtered.length){
-    status.textContent='No venues within '+maxMi+' mi — try a larger radius.';
+    status.textContent='No venues within '+(maxMi||_currentRadius||1)+' mi — try a larger radius.';
     results.innerHTML=''; return;
   }
-  status.textContent=filtered.length+' venue'+(filtered.length!==1?'s':'')+' within '+maxMi+' mi · '+periodLabel;
+  status.textContent=filtered.length+' venue'+(filtered.length!==1?'s':'')+' within '+(maxMi||_currentRadius||1)+' mi · '+periodLabel;
   var html='';
   filtered.forEach(function(v,i){
     var r=v.record;
@@ -1260,6 +1263,12 @@ function renderNearbyCards(geocoded, maxMi) {
   });
 }
 
+
+
+function getRadius() {
+  var el = document.getElementById('radius-slider') || {};
+  return parseInt(document.querySelector('.radius-pill.active')&&document.querySelector('.radius-pill.active').textContent)||_currentRadius||1;
+}
 
 var _nearbySort = 'proximity';
 function setNearbySort(mode) {
@@ -1327,6 +1336,8 @@ function runNearbySearch(userLat, userLng){
     var ADDRESS_ALIASES = {
       '5001 BELT LINE RD|DALLAS|75254': '5001 BELTLINE RD|DALLAS|75254',
       '5001 BELTLINE RD|DALLAS|75254': '5001 BELT LINE RD|DALLAS|75254',
+      '5001 BELT LINE RD|ADDISON|75001': '5001 BELTLINE RD|ADDISON|75001',
+      '5001 BELTLINE RD|ADDISON|75001': '5001 BELT LINE RD|ADDISON|75001',
     };
 
     Object.keys(geoLookup).forEach(function(key){
@@ -1387,7 +1398,11 @@ function runNearbySearch(userLat, userLng){
       venues.forEach(function(v){
         var key=addrKey(v.location_address||'',v.location_city||'',v.location_zip||'');
         var geo=nearbyCoords[key];
-        if(geo) geocoded.push({record:v,lat:geo.lat,lng:geo.lng,dist:geo.dist});
+        if(geo){
+          geocoded.push({record:v,lat:geo.lat,lng:geo.lng,dist:geo.dist});
+        } else {
+          console.log('[Nearby miss]', addrKey(v.location_address||'',v.location_city||'',v.location_zip||''));
+        }
       });
 
       // PY fetch (first batch only for speed)
@@ -1410,8 +1425,8 @@ function runNearbySearch(userLat, userLng){
           if(pyMap[k]!==undefined) v.record._py_total=pyMap[k];
         });
         _nearbyGeocoded=geocoded;
-        renderNearbyCards(geocoded,radiusMi);
-      }).catch(function(){_nearbyGeocoded=geocoded;renderNearbyCards(geocoded,radiusMi);});
+        renderNearbyCards(geocoded, radiusMi||_currentRadius||1);
+      }).catch(function(){_nearbyGeocoded=geocoded;renderNearbyCards(geocoded, radiusMi||_currentRadius||1);});
     }
 
     fetchBatch(0);

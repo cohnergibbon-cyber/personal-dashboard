@@ -327,9 +327,9 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
       </div>
       <div id="card-list" style="display:none;"></div>
       <div class="pager">
-        <button class="pg-btn" id="btn-prev">← Prev</button>
+        <button class="pg-btn" id="btn-prev" onclick="if(page>1){page--;renderTable();}">← Prev</button>
         <span class="pg-info" id="page-info"></span>
-        <button class="pg-btn" id="btn-next">Next →</button>
+        <button class="pg-btn" id="btn-next" onclick="if(allRows.length&&page<Math.ceil(allRows.length/PER)){page++;renderTable();}">Next →</button>
         <span class="pg-right pg-info" id="page-range"></span>
       </div>
     </div>

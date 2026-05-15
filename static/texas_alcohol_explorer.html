@@ -221,6 +221,12 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
 .radius-pill.active { background: var(--accent); border-color: var(--accent); color: #F5F0E8; }
 .radius-pill:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
 .radius-pill:active { opacity: 0.75; }
+
+.sort-row { display:flex; gap:8px; margin-bottom:10px; align-items:center; flex-wrap:wrap; }
+.sort-lbl { font-size:11px; font-family:var(--mono); text-transform:uppercase; letter-spacing:0.08em; color:var(--text3); margin-right:4px; }
+.sort-pill { height:30px; padding:0 14px; border:1.5px solid var(--border2); border-radius:20px; background:transparent; color:var(--text2); font-size:11px; font-family:var(--mono); font-weight:600; cursor:pointer; transition:all 0.15s; -webkit-tap-highlight-color:transparent; white-space:nowrap; }
+.sort-pill.active { background:var(--accent); border-color:var(--accent); color:#F5F0E8; }
+.sort-pill:hover:not(.active) { border-color:var(--accent); color:var(--accent); }
 </style>
 </head>
 <body>
@@ -359,6 +365,7 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
     </div>
 
     <div id="map-status" class="map-status" style="display:none;"></div>
+    <div id="sort-row-wrap" style="display:none;" class="sort-row"><span class="sort-lbl">Sort</span><button class="sort-pill active" data-sort="proximity" onclick="setNearbySort('proximity')">Proximity</button><button class="sort-pill" data-sort="sales" onclick="setNearbySort('sales')">Highest sales</button></div>
     <div id="map-results"></div>
   </div>
 </div>
@@ -1178,7 +1185,13 @@ function renderNearbyCards(geocoded, maxMi) {
   var mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var periodLabel=mNames[_d.getMonth()]+' '+_d.getFullYear();
   var filtered=geocoded.filter(function(v){return v.dist<=maxMi;});
-  filtered.sort(function(a,b){return a.dist-b.dist;});
+  if(_nearbySort==='sales'){
+    filtered.sort(function(a,b){return (parseFloat(b.record.total_receipts)||0)-(parseFloat(a.record.total_receipts)||0);});
+  } else {
+    filtered.sort(function(a,b){return a.dist-b.dist;});
+  }
+  var sortWrap=document.getElementById('sort-row-wrap');
+  if(sortWrap) sortWrap.style.display=filtered.length?'flex':'none';
   if(!filtered.length){
     status.textContent='No venues within '+maxMi+' mi — try a larger radius.';
     results.innerHTML=''; return;
@@ -1216,6 +1229,16 @@ function renderNearbyCards(geocoded, maxMi) {
       if(v){var r=v.record;openHistory(r.location_name||'',r.taxpayer_name||'',r.obligation_end_date_yyyymmdd||'',r.location_city||'',r.location_zip||'',r.location_address||'');}
     });
   });
+}
+
+
+var _nearbySort = 'proximity';
+function setNearbySort(mode) {
+  _nearbySort = mode;
+  document.querySelectorAll('.sort-pill').forEach(function(btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-sort') === mode);
+  });
+  if (_nearbyGeocoded.length) renderNearbyCards(_nearbyGeocoded, _currentRadius);
 }
 
 function findNearby(){

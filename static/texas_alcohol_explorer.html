@@ -319,7 +319,7 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
 
     <div id="results">
       <div class="tbl-hdr">
-        <span class="tbl-hint">Tap any row for history</span>
+        <span class="tbl-hint">Tap any venue for history &nbsp;&middot;&nbsp; Showing ≥$25k monthly sales only</span>
         <button class="btn-sm" onclick="exportMainCSV()">Export CSV</button>
       </div>
       <div class="tbl-wrap" id="tbl-wrap">
@@ -342,7 +342,6 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
         <button class="pg-btn" id="btn-next" onclick="if(allRows.length&&page<Math.ceil(allRows.length/PER)){page++;renderTable();}">Next →</button>
         <span class="pg-right pg-info" id="page-range"></span>
       </div>
-      <div class="results-note">Showing venues with ≥$25,000 monthly alcohol sales</div>
     </div>
   </div>
 </div>
@@ -1199,6 +1198,15 @@ function addrKey(addr, city, zip) {
   return ((addr||'')+'|'+(city||'')+'|'+((zip||'').slice(0,5))).toUpperCase().trim();
 }
 
+
+function fixVenueName(name) {
+  if (!name) return name;
+  var fixes = {'IDA CLLAIRE': 'IDA CLAIRE'};
+  var up = name.toUpperCase();
+  for (var w in fixes) { if (up.indexOf(w) >= 0) return name.toUpperCase().replace(w, fixes[w]); }
+  return name;
+}
+
 function renderNearbyCards(geocoded, maxMi) {
   var status=document.getElementById('map-status');
   var results=document.getElementById('map-results');
@@ -1315,6 +1323,12 @@ function runNearbySearch(userLat, userLng){
 
     // Scan entire geo lookup — no city filter
     var nearbyCoords={};
+    // Known address aliases (TABC address -> geo lookup key)
+    var ADDRESS_ALIASES = {
+      '5001 BELT LINE RD|DALLAS|75254': '5001 BELTLINE RD|DALLAS|75254',
+      '5001 BELTLINE RD|DALLAS|75254': '5001 BELT LINE RD|DALLAS|75254',
+    };
+
     Object.keys(geoLookup).forEach(function(key){
       var coord=geoLookup[key];
       var dist=haverDist(userLat,userLng,coord[0],coord[1]);
@@ -1334,7 +1348,8 @@ function runNearbySearch(userLat, userLng){
     var pad=nm<10?'0'+nm:String(nm);
     var dateWhere=[
       "obligation_end_date_yyyymmdd>='"+year+'-'+month+"-01T00:00:00.000'",
-      "obligation_end_date_yyyymmdd<'"+ny+'-'+pad+"-01T00:00:00.000'"
+      "obligation_end_date_yyyymmdd<'"+ny+'-'+pad+"-01T00:00:00.000'",
+      "total_receipts>=25000"
     ];
 
     // Build address filters from geo keys (ADDR|CITY|ZIP)

@@ -329,10 +329,23 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
   <div class="wrap">
     <div class="map-fcard">
       <div class="section-label">Find nearby</div>
-      <button class="loc-btn" onclick="findNearby()">
+      <button class="loc-btn" id="loc-btn" onclick="findNearby()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
         Use my location
       </button>
+      <div class="radius-row">
+        <div class="radius-label-row">
+          <span class="radius-lbl">Radius</span>
+          <span class="radius-val" id="radius-val">1 mi</span>
+        </div>
+        <div class="radius-pills">
+          <button class="radius-pill active" onclick="setRadius(1)">1 mi</button>
+          <button class="radius-pill" onclick="setRadius(2)">2 mi</button>
+          <button class="radius-pill" onclick="setRadius(3)">3 mi</button>
+          <button class="radius-pill" onclick="setRadius(4)">4 mi</button>
+          <button class="radius-pill" onclick="setRadius(5)">5 mi</button>
+        </div>
+      </div>
     </div>
 
     <div id="map-status" class="map-status" style="display:none;"></div>
@@ -1271,4 +1284,5 @@ document.getElementById('modal-overlay').addEventListener('click', function(e) {
 
 </script>
 </body>
-</html> 
+</html>
+<!-- v2 -->

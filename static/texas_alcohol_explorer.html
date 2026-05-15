@@ -682,6 +682,7 @@ function applySort() {
 }
 
 function renderTable() {
+  document.getElementById('results').style.display='block';
   var isMobile = (window.innerWidth || document.documentElement.clientWidth) < 640;
   var start=(page-1)*PER, slice=allRows.slice(start,start+PER);
   document.getElementById('results').style.display='block';
@@ -1142,13 +1143,16 @@ function onYTDChange(cb) {
 initCityDropdown();
 document.getElementById('btn-run').addEventListener('click',runQuery);
 document.getElementById('btn-clear').addEventListener('click',clearAll);
-document.getElementById('btn-prev').addEventListener('click',function(){page=Math.max(1,page-1);renderTable();});
-document.getElementById('btn-next').addEventListener('click',function(){page=Math.min(Math.ceil(allRows.length/PER),page+1);renderTable();});
-
-
-['location_name','location_city','total_receipts','py_total','var_amt','var_pct'].forEach(function(k){
-  var th=document.getElementById('th-'+k);if(th)th.addEventListener('click',function(){sortBy(k);});
+document.getElementById('btn-prev').addEventListener('click',function(){
+  if(page>1){ page--; renderTable(); }
 });
+document.getElementById('btn-next').addEventListener('click',function(){
+  var tp=Math.ceil(allRows.length/PER)||1;
+  if(page<tp){ page++; renderTable(); }
+});
+
+
+// sort handled by onclick on th elements
 ['f-taxpayer','f-city','f-zip'].forEach(function(id){
   document.getElementById(id).addEventListener('keydown',function(e){if(e.key==='Enter')runQuery();});
 });

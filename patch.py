@@ -6,84 +6,51 @@ with open(path, 'r', encoding='utf-8') as f:
 print('File size before:', len(c))
 changes = 0
 
-# ── 1. Sort CSS
-if '.sort-pill' not in c:
-    sort_css = """
-.sort-row { display:flex; gap:8px; margin-bottom:10px; align-items:center; flex-wrap:wrap; }
-.sort-lbl { font-size:11px; font-family:var(--mono); text-transform:uppercase; letter-spacing:0.08em; color:var(--text3); margin-right:4px; }
-.sort-pill { height:30px; padding:0 14px; border:1.5px solid var(--border2); border-radius:20px; background:transparent; color:var(--text2); font-size:11px; font-family:var(--mono); font-weight:600; cursor:pointer; transition:all 0.15s; -webkit-tap-highlight-color:transparent; white-space:nowrap; }
-.sort-pill.active { background:var(--accent); border-color:var(--accent); color:#F5F0E8; }
-.sort-pill:hover:not(.active) { border-color:var(--accent); color:var(--accent); }
-"""
-    c = c.replace('</style>', sort_css + '</style>', 1)
-    print('1. Sort CSS: added'); changes += 1
+# ── 1. Remove duplicate th addEventListener (onclick already handles sort)
+old_th_listeners = """['location_name','location_city','total_receipts','py_total','var_amt','var_pct'].forEach(function(k){
+  var th=document.getElementById('th-'+k);if(th)th.addEventListener('click',function(){sortBy(k);});
+});"""
+if old_th_listeners in c:
+    c = c.replace(old_th_listeners, '// sort handled by onclick on th elements')
+    print('1. Removed duplicate th sort listeners'); changes += 1
 else:
-    print('1. Sort CSS: already present')
+    print('1. Duplicate th listeners: not found (may already be fixed)')
 
-# ── 2. Sort state + function
-if 'function setNearbySort' not in c:
-    sort_js = """
-var _nearbySort = 'proximity';
-function setNearbySort(mode) {
-  _nearbySort = mode;
-  document.querySelectorAll('.sort-pill').forEach(function(btn) {
-    btn.classList.toggle('active', btn.getAttribute('data-sort') === mode);
-  });
-  if (_nearbyGeocoded.length) renderNearbyCards(_nearbyGeocoded, _currentRadius);
-}
-"""
-    c = c.replace('function findNearby(){', sort_js + '\nfunction findNearby(){')
-    print('2. setNearbySort: added'); changes += 1
+# ── 2. Fix Next button - wrap in explicit handler that logs
+old_next = "document.getElementById('btn-next').addEventListener('click',function(){page=Math.min(Math.ceil(allRows.length/PER),page+1);renderTable();});"
+new_next = """document.getElementById('btn-next').addEventListener('click',function(){
+  var tp=Math.ceil(allRows.length/PER)||1;
+  if(page<tp){ page++; renderTable(); }
+});"""
+if old_next in c:
+    c = c.replace(old_next, new_next)
+    print('2. Next button: rewritten with explicit guard'); changes += 1
 else:
-    print('2. setNearbySort: already present')
+    print('2. Next button: not found in expected form')
 
-# ── 3. Sort row HTML above map-results
-if 'sort-row-wrap' not in c:
+# ── 3. Fix Prev button similarly
+old_prev = "document.getElementById('btn-prev').addEventListener('click',function(){page=Math.max(1,page-1);renderTable();});"
+new_prev = """document.getElementById('btn-prev').addEventListener('click',function(){
+  if(page>1){ page--; renderTable(); }
+});"""
+if old_prev in c:
+    c = c.replace(old_prev, new_prev)
+    print('3. Prev button: rewritten with explicit guard'); changes += 1
+else:
+    print('3. Prev button: not found in expected form')
+
+# ── 4. Ensure results div shown at start of renderTable (not mid-function)
+fn_start = c.find('function renderTable()')
+fn_body = c[fn_start:fn_start+100]
+if "getElementById('results').style.display='block'" not in fn_body:
+    # Move the results show to the very top of the function
     c = c.replace(
-        '<div id="map-results"',
-        '<div id="sort-row-wrap" style="display:none;" class="sort-row">'
-        + '<span class="sort-lbl">Sort</span>'
-        + '<button class="sort-pill active" data-sort="proximity" onclick="setNearbySort(\'proximity\')">Proximity</button>'
-        + '<button class="sort-pill" data-sort="sales" onclick="setNearbySort(\'sales\')">Highest sales</button>'
-        + '</div>\n    <div id="map-results"',
-        1
-    )
-    print('3. Sort row HTML: added'); changes += 1
-else:
-    print('3. Sort row HTML: already present')
-
-# ── 4. Sort logic inside renderNearbyCards
-if "if(_nearbySort===" not in c:
-    c = c.replace(
-        "  var filtered=geocoded.filter(function(v){return v.dist<=maxMi;});\n  filtered.sort(function(a,b){return a.dist-b.dist;});\n  if(!filtered.length){",
-        """  var filtered=geocoded.filter(function(v){return v.dist<=maxMi;});
-  if(_nearbySort==='sales'){
-    filtered.sort(function(a,b){return (parseFloat(b.record.total_receipts)||0)-(parseFloat(a.record.total_receipts)||0);});
-  } else {
-    filtered.sort(function(a,b){return a.dist-b.dist;});
-  }
-  var sortWrap=document.getElementById('sort-row-wrap');
-  if(sortWrap) sortWrap.style.display=filtered.length?'flex':'none';
-  if(!filtered.length){"""
-    )
-    print('4. Sort logic: added'); changes += 1
-else:
-    print('4. Sort logic: already present')
-
-# ── 5. Next button - ensure results div shown on EVERY renderTable call
-if "getElementById('results').style.display='block'" not in c:
-    for old in [
         "function renderTable() {\n  var isMobile",
-        "function renderTable() {\n  var start=(page-1)*PER",
-    ]:
-        if old in c:
-            c = c.replace(old, "function renderTable() {\n  document.getElementById('results').style.display='block';\n" + old[len("function renderTable() {\n"):])
-            print('5. Next button fix: added'); changes += 1
-            break
-    else:
-        print('5. Next button fix: renderTable not found in expected form')
+        "function renderTable() {\n  document.getElementById('results').style.display='block';\n  var isMobile"
+    )
+    print('4. results show moved to top of renderTable'); changes += 1
 else:
-    print('5. Next button fix: already present')
+    print('4. results show: already at top')
 
 with open(path, 'w', encoding='utf-8') as f:
     f.write(c)

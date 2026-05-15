@@ -264,18 +264,10 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
         <div class="flabel">Period</div>
         <div class="period-row">
           <select id="f-month" class="sel">
-            <option value="01">January</option>
-            <option value="02">February</option>
-            <option value="03">March</option>
-            <option value="04">April</option>
-            <option value="05">May</option>
-            <option value="06">June</option>
-            <option value="07">July</option>
-            <option value="08">August</option>
-            <option value="09">September</option>
-            <option value="10">October</option>
-            <option value="11">November</option>
-            <option value="12">December</option>
+            <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+            <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+            <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
           </select>
           <select id="f-year" class="sel"></select>
         </div>
@@ -1119,53 +1111,86 @@ function findNearby(){
   if(!navigator.geolocation){status.textContent='Location not supported.';return;}
   navigator.geolocation.getCurrentPosition(function(pos){
     var lat=pos.coords.latitude, lng=pos.coords.longitude;
-
     status.textContent='Finding nearby venues...';
-    fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json')
-      .then(function(r){return r.json();})
-      .then(function(geo){
-        var zip=(geo.address&&geo.address.postcode||'').slice(0,5);
-        var city=geo.address&&(geo.address.city||geo.address.town||geo.address.village)||'';
-        // Auto-detect most recent available period (~2 months ago)
-        var _d=new Date(); _d.setMonth(_d.getMonth()-2);
-        var month=String(_d.getMonth()+1).padStart(2,'0');
-        var year=String(_d.getFullYear());
-        var where=[];
-        if(zip) where.push("location_zip='"+zip+"'");
-        else if(city) where.push("upper(location_city)='"+city.toUpperCase()+"'");
-        var nm=parseInt(month)===12?1:parseInt(month)+1;
-        var ny=parseInt(month)===12?parseInt(year)+1:parseInt(year);
-        var pad=nm<10?'0'+nm:String(nm);
-        where.push("obligation_end_date_yyyymmdd>='"+year+"-"+month+"-01T00:00:00.000'");
-        where.push("obligation_end_date_yyyymmdd<'"+ny+"-"+pad+"-01T00:00:00.000'");
-        var url='https://data.texas.gov/resource/naix-2893.json?$limit=50&$order=total_receipts+DESC&$select=location_name,location_city,location_address,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
-        fetch(url).then(function(r){return r.json();}).then(function(data){
-          if(!data.length){status.textContent='No venues found near you.';return;}
-          status.textContent=data.length+' venues near you';
-          window._mapVenues=data;
-          var html='';
-          // Build period label for tooltip
-          var mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-          var periodLabel=mNames[parseInt(month)-1]+' '+year;
-          data.forEach(function(r,i){
-            var sales=fmtMoney(parseFloat(r.total_receipts)||0,false);
-            html+='<div class="venue-card" data-idx="'+i+'">'
-              +'<div class="venue-tooltip">'+periodLabel+' sales: '+sales+'</div>'
-              +'<div class="venue-name">'+(r.location_name||'')+'</div>'
-              +'<div class="venue-addr">'+(r.location_address||'')+(r.location_city?', '+r.location_city:'')+' '+(r.location_zip||'')+'</div>'
-              +'<div class="venue-stats"><div class="venue-stat">'+periodLabel+': <strong>'+fmtMoney(parseFloat(r.total_receipts)||0,true)+'</strong></div>'
-              +'<div class="venue-stat">ZIP: <strong>'+(r.location_zip||'')+'</strong></div></div>'
-              +'</div>';
-          });
-          results.innerHTML=html;
-          results.querySelectorAll('.venue-card').forEach(function(card){
-            card.addEventListener('click',function(){
-              var r=window._mapVenues[parseInt(this.getAttribute('data-idx'))];
-              if(r) openHistory(r.location_name||'',r.taxpayer_name||'',r.obligation_end_date_yyyymmdd||'',r.location_city||'',r.location_zip||'',r.location_address||'');
-            });
-          });
+
+    // Auto-detect most recent available period (~2 months ago)
+    var _d=new Date(); _d.setMonth(_d.getMonth()-2);
+    var month=String(_d.getMonth()+1).padStart(2,'0');
+    var year=String(_d.getFullYear());
+    var mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var periodLabel=mNames[parseInt(month)-1]+' '+year;
+    var nm=parseInt(month)===12?1:parseInt(month)+1;
+    var ny=parseInt(month)===12?parseInt(year)+1:parseInt(year);
+    var pad=nm<10?'0'+nm:String(nm);
+    var dateWhere=[
+      "obligation_end_date_yyyymmdd>='"+year+"-"+month+"-01T00:00:00.000'",
+      "obligation_end_date_yyyymmdd<'"+ny+"-"+pad+"-01T00:00:00.000'"
+    ];
+
+    function distMiles(rlat,rlng){
+      var dlat=(parseFloat(rlat)-lat)*69;
+      var dlng=(parseFloat(rlng)-lng)*69*Math.cos(lat*Math.PI/180);
+      return Math.sqrt(dlat*dlat+dlng*dlng);
+    }
+
+    function buildUrl(radiusMiles){
+      var latDelta=radiusMiles/69;
+      var lngDelta=radiusMiles/(69*Math.cos(lat*Math.PI/180));
+      var where=dateWhere.concat([
+        "location_latitude>='"+( lat-latDelta).toFixed(6)+"'",
+        "location_latitude<='"+( lat+latDelta).toFixed(6)+"'",
+        "location_longitude>='"+( lng-lngDelta).toFixed(6)+"'",
+        "location_longitude<='"+( lng+lngDelta).toFixed(6)+"'"
+      ]);
+      return 'https://data.texas.gov/resource/naix-2893.json?$limit=200&$select=location_name,location_city,location_address,location_zip,location_latitude,location_longitude,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
+    }
+
+    function renderVenues(data){
+      // Sort by distance
+      data.sort(function(a,b){
+        return distMiles(a.location_latitude,a.location_longitude)-distMiles(b.location_latitude,b.location_longitude);
+      });
+      status.textContent=data.length+' venues near you · '+periodLabel;
+      window._mapVenues=data;
+      var html='';
+      data.forEach(function(r,i){
+        var sales=fmtMoney(parseFloat(r.total_receipts)||0,false);
+        var dm=distMiles(r.location_latitude,r.location_longitude).toFixed(1);
+        html+='<div class="venue-card" data-idx="'+i+'">'
+          +'<div class="venue-tooltip">'+periodLabel+': '+sales+'</div>'
+          +'<div class="venue-name">'+(r.location_name||'')+'</div>'
+          +'<div class="venue-addr">'+(r.location_address||'')+(r.location_city?', '+r.location_city:'')+' '+(r.location_zip||'')+'</div>'
+          +'<div class="venue-stats">'
+          +'<div class="venue-stat"><span class="venue-period">'+periodLabel+'</span> <strong>'+sales+'</strong></div>'
+          +'<div class="venue-stat" style="color:var(--text3);font-size:11px;">'+dm+' mi away</div>'
+          +'</div>'
+          +'</div>';
+      });
+      results.innerHTML=html;
+      results.querySelectorAll('.venue-card').forEach(function(card){
+        card.addEventListener('click',function(){
+          var r=window._mapVenues[parseInt(this.getAttribute('data-idx'))];
+          if(r) openHistory(r.location_name||'',r.taxpayer_name||'',r.obligation_end_date_yyyymmdd||'',r.location_city||'',r.location_zip||'',r.location_address||'');
+        });
+      });
+    }
+
+    // Try 5-mile radius first, fall back to 15 miles if empty
+    fetch(buildUrl(5)).then(function(r){return r.json();}).then(function(data){
+      if(data&&data.length>0){
+        renderVenues(data);
+      } else {
+        status.textContent='Widening search...';
+        fetch(buildUrl(15)).then(function(r){return r.json();}).then(function(data2){
+          if(data2&&data2.length>0){
+            renderVenues(data2);
+          } else {
+            status.textContent='No venues found near you. Try a different location.';
+          }
         }).catch(function(){status.textContent='Could not fetch venue data.';});
-      }).catch(function(){status.textContent='Could not determine location.';});
+      }
+    }).catch(function(){status.textContent='Could not fetch venue data.';});
+
   },function(){status.textContent='Location access denied.';},{timeout:10000});
 }
 

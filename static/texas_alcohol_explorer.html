@@ -1226,7 +1226,7 @@ function onYTDChange(cb) {
 // Wire up
 initCityDropdown();
 document.getElementById('btn-run').addEventListener('click',runQuery);
-document.getElementById('btn-clear').addEventListener('click',clearAll);
+var _btnClear=document.getElementById('btn-clear');if(_btnClear)_btnClear.addEventListener('click',clearAll);
 document.getElementById('btn-prev').addEventListener('click',function(){page=Math.max(1,page-1);renderTable();});
 document.getElementById('btn-next').addEventListener('click',function(){page=Math.min(Math.ceil(allRows.length/PER),page+1);renderTable();});
 
@@ -1455,7 +1455,8 @@ function cmpSuggest(input, slot) {
         div.className = 'cmp-sug-item';
         div.innerHTML = '<div class="cmp-sug-name">' + (r.location_name||'') + '</div>' +
           '<div class="cmp-sug-addr">' + (r.location_address||'') + (r.location_city?', '+r.location_city:'') + ' ' + (r.location_zip||'') + '</div>';
-        div.onclick = function() {
+        div.onmousedown = function(e) {
+          e.preventDefault(); // prevent input blur before click registers
           cmpSelectVenue(slot, r);
           input.value = r.location_name || '';
           sugBox.style.display = 'none';

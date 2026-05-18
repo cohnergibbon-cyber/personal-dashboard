@@ -197,6 +197,15 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
 .map-card { background: var(--s1); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 12px; }
 
 .map-fcard { background: var(--s1); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; margin-bottom: 12px; }
+.nearby-addr-wrap { display:flex; gap:8px; margin-bottom:6px; }
+.nearby-addr-input { flex:1; padding:10px 12px; border:1.5px solid var(--border2); border-radius:var(--r-sm); background:var(--s2); color:var(--text); font-size:14px; font-family:var(--sans); outline:none; transition:border-color 0.15s; }
+.nearby-addr-input:focus { border-color:var(--accent); }
+.nearby-addr-input::placeholder { color:var(--text3); }
+.nearby-addr-btn { padding:0 16px; background:var(--accent); color:#F5F0E8; font-family:var(--sans); font-size:14px; font-weight:600; border:none; border-radius:var(--r-sm); cursor:pointer; white-space:nowrap; height:44px; }
+.nearby-addr-btn:active { opacity:0.75; }
+.nearby-divider { text-align:center; color:var(--text3); font-size:12px; margin:8px 0; position:relative; }
+.nearby-divider:before { content:''; position:absolute; top:50%; left:0; right:0; height:1px; background:var(--border); }
+.nearby-divider span { position:relative; background:var(--s1); padding:0 8px; }
 .loc-btn { height: 44px; padding: 0 18px; background: var(--accent); color: #F5F0E8; font-family: var(--sans); font-size: 14px; font-weight: 600; border: none; border-radius: var(--r-sm); cursor: pointer; -webkit-tap-highlight-color: transparent; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
 .venue-card { background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px 14px; margin-bottom: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent; position: relative; transition: border-color 0.15s, box-shadow 0.15s; }
 .venue-card:hover { border-color: var(--accent); box-shadow: 0 2px 12px rgba(45,90,45,0.12); }
@@ -372,6 +381,11 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
   <div class="wrap">
     <div class="map-fcard">
       <div class="section-label">Find nearby</div>
+      <div class="nearby-addr-wrap">
+        <input id="nearby-addr-input" class="nearby-addr-input" type="text" placeholder="Enter an address or zip code…" autocomplete="off" autocorrect="off">
+        <button class="nearby-addr-btn" id="nearby-addr-btn" onclick="findNearbyByAddress()">Search</button>
+      </div>
+      <div class="nearby-divider"><span>or</span></div>
       <button class="loc-btn" id="loc-btn" onclick="findNearby()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
         Use my location
@@ -1325,6 +1339,105 @@ function setNearbySort(mode) {
   });
   if (_nearbyGeocoded.length) renderNearbyCards(_nearbyGeocoded, _currentRadius);
 }
+
+function findNearbyByAddress(){
+  var q = (document.getElementById('nearby-addr-input').value||'').trim();
+  if (!q) return;
+  var status = document.getElementById('map-status');
+  var results = document.getElementById('map-results');
+  _nearbyGeocoded = [];
+  status.style.display = 'block';
+  status.textContent = 'Looking up address…';
+  results.innerHTML = '';
+  var radiusMi = _currentRadius || 1;
+
+  fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q+', Texas')+'&format=json&limit=1&countrycodes=us',
+    {headers:{'Accept-Language':'en'}})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if (!data || !data.length) throw new Error('Address not found — try a more specific address or zip');
+    var userLat = parseFloat(data[0].lat);
+    var userLng = parseFloat(data[0].lon);
+    status.textContent = 'Loading venue coordinates…';
+
+    fetch('/tx_venues_geo.json')
+    .then(function(r){
+      if (!r.ok) throw new Error('tx_venues_geo.json not found — run geocode_tabc.py first');
+      return r.json();
+    })
+    .then(function(geoLookup){
+      status.textContent = 'Finding nearest city…';
+      return fetch('https://nominatim.openstreetmap.org/reverse?lat='+userLat+'&lon='+userLng+'&format=json&zoom=10',
+        {headers:{'Accept-Language':'en'}})
+      .then(function(r){return r.json();})
+      .then(function(geo){
+        var rawCity = (geo.address&&(geo.address.city||geo.address.town||geo.address.village||geo.address.suburb))||'';
+        var city = rawCity.toUpperCase().trim();
+        if (!city) throw new Error('Could not determine city from address');
+        status.textContent = 'Fetching venues in '+rawCity+'…';
+        var _d=new Date(); _d.setMonth(_d.getMonth()-2);
+        var month=String(_d.getMonth()+1).padStart(2,'0');
+        var year=String(_d.getFullYear());
+        var nm=parseInt(month)===12?1:parseInt(month)+1;
+        var ny=parseInt(month)===12?parseInt(year)+1:parseInt(year);
+        var pad=nm<10?'0'+nm:String(nm);
+        var where=[
+          "upper(location_city)='"+city.replace(/'/g,"''")+"'",
+          "obligation_end_date_yyyymmdd>='"+year+'-'+month+"-01T00:00:00.000'",
+          "obligation_end_date_yyyymmdd<'"+ny+'-'+pad+"-01T00:00:00.000'"
+        ];
+        var url='https://data.texas.gov/resource/naix-2893.json?$limit=500&$select=location_name,location_address,location_city,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
+        return fetch(url).then(function(r){return r.json();}).then(function(venues){
+          if (!venues||!venues.length) throw new Error('No venues found in '+rawCity);
+          var geocoded=[], missing=0;
+          venues.forEach(function(v){
+            var key=addrKey(v.location_address||'',v.location_city||'',v.location_zip||'');
+            var coord=geoLookup[key];
+            if (coord){
+              var dist=haverDist(userLat,userLng,coord[0],coord[1]);
+              if (dist<=5) geocoded.push({record:v,lat:coord[0],lng:coord[1],dist:dist});
+            } else { missing++; }
+          });
+          if (missing) console.log('[Nearby] '+missing+' venues missing from geo lookup');
+          var pyMonth=parseInt(month)===1?12:parseInt(month)-1;
+          var pyYear=parseInt(month)===1?parseInt(year)-1:parseInt(year);
+          var pyM=String(pyMonth).padStart(2,'0');
+          var pyY=String(pyYear);
+          var pyNm=pyMonth===12?1:pyMonth+1;
+          var pyNy=pyMonth===12?pyYear+1:pyYear;
+          var pyPad=pyNm<10?'0'+pyNm:String(pyNm);
+          var pyWhere=[
+            "upper(location_city)='"+city.replace(/'/g,"''")+"'",
+            "obligation_end_date_yyyymmdd>='"+pyY+'-'+pyM+"-01T00:00:00.000'",
+            "obligation_end_date_yyyymmdd<'"+pyNy+'-'+pyPad+"-01T00:00:00.000'"
+          ];
+          var pyUrl='https://data.texas.gov/resource/naix-2893.json?$limit=500&$select=location_name,location_address,location_zip,total_receipts&$where='+encodeURIComponent(pyWhere.join(' AND '));
+          return fetch(pyUrl).then(function(r){return r.json();}).then(function(pyVenues){
+            var pyMap={};
+            (pyVenues||[]).forEach(function(p){
+              var k=(p.location_name||'')+'|'+(p.location_zip||'');
+              pyMap[k]=parseFloat(p.total_receipts)||0;
+            });
+            geocoded.forEach(function(v){
+              var k=(v.record.location_name||'')+'|'+(v.record.location_zip||'');
+              if (pyMap[k]!==undefined) v.record._py_total=pyMap[k];
+            });
+            _nearbyGeocoded=geocoded;
+            renderNearbyCards(geocoded, radiusMi);
+          });
+        });
+      });
+    })
+    .catch(function(e){ status.textContent='Error: '+e.message; });
+  })
+  .catch(function(e){ status.textContent='Error: '+e.message; });
+}
+
+// Also allow Enter key on address input
+document.addEventListener('DOMContentLoaded', function(){
+  var ai = document.getElementById('nearby-addr-input');
+  if (ai) ai.addEventListener('keydown', function(e){ if(e.key==='Enter') findNearbyByAddress(); });
+});
 
 function findNearby(){
   var status=document.getElementById('map-status');

@@ -66,19 +66,25 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 #city-panel { display: none; margin-bottom: 12px; }
 .cpanel { background: var(--s1); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; overflow: hidden; }
 .section-label { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
-.city-tbl { width: 100%; border-collapse: collapse; }
-.city-tbl th { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; padding: 0 5px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
-.city-tbl th:first-child { text-align: left; width: 33%; }
-.city-tbl th:nth-child(2) { width: 17%; }
-.city-tbl th:nth-child(3) { width: 17%; }
+.city-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.city-tbl th { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; padding: 0 3px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.city-tbl th:first-child { text-align: left; width: 36%; }
+.city-tbl th:nth-child(2) { width: 16%; }
+.city-tbl th:nth-child(3) { width: 16%; }
 .city-tbl th:nth-child(4) { width: 18%; }
-.city-tbl th:nth-child(5) { width: 15%; }
-.city-tbl td { font-size: 12px; padding: 7px 5px; text-align: right; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; color: var(--text); }
-.city-tbl td:first-child { text-align: left; font-size: 13px; font-weight: 500; }
+.city-tbl th:nth-child(5) { width: 14%; }
+.city-tbl td { font-size: 11px; padding: 6px 3px; text-align: right; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; color: var(--text); }
+.city-tbl td:first-child { text-align: left; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .city-tbl tr:last-child td { border-bottom: none; }
 @media (max-width: 600px) {
-  .city-tbl th:nth-child(3), .city-tbl td:nth-child(3) { display: none; }
-  .city-tbl th:first-child { width: 38%; }
+  .city-tbl th { font-size: 8px; padding: 0 2px 6px; }
+  .city-tbl td { font-size: 10px; padding: 5px 2px; }
+  .city-tbl td:first-child { font-size: 11px; }
+  .city-tbl th:first-child { width: 34%; }
+  .city-tbl th:nth-child(2) { width: 16%; }
+  .city-tbl th:nth-child(3) { width: 16%; }
+  .city-tbl th:nth-child(4) { width: 19%; }
+  .city-tbl th:nth-child(5) { width: 15%; }
 }
 
 /* ─── Filter card ─── */
@@ -242,6 +248,21 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
 .cmp-venue-input { width:100%; padding:10px 12px; border:1.5px solid var(--border2); border-radius:var(--r-sm); background:var(--s1); color:var(--text); font-size:14px; font-family:var(--font); outline:none; transition:border-color 0.15s; }
 .cmp-venue-input:focus { border-color:var(--accent); }
 .cmp-venue-input.cmp-confirmed { border-color:var(--pos); background:var(--pos-dim); }
+/* Compare search results list */
+.cmp-result-row { display:flex; align-items:center; padding:10px 12px; border-bottom:1px solid var(--border); cursor:pointer; gap:10px; -webkit-tap-highlight-color:transparent; }
+.cmp-result-row:last-child { border-bottom:none; }
+.cmp-result-row:hover, .cmp-result-row:active { background:var(--s2); }
+.cmp-result-row.selected { background:var(--pos-dim); }
+.cmp-result-cb { width:18px; height:18px; accent-color:var(--accent); flex-shrink:0; cursor:pointer; }
+.cmp-result-info { flex:1; min-width:0; }
+.cmp-result-name { font-size:13px; font-weight:600; color:var(--text); }
+.cmp-result-sub { font-size:11px; color:var(--text3); margin-top:2px; }
+/* Chips */
+.cmp-chip { display:flex; align-items:center; gap:8px; background:var(--pos-dim); border:1px solid var(--pos); border-radius:20px; padding:5px 8px 5px 12px; margin-bottom:5px; }
+.cmp-chip-name { font-size:12px; font-weight:600; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cmp-chip-city { font-size:11px; color:var(--text3); flex-shrink:0; }
+.cmp-chip-rm { width:20px; height:20px; border-radius:50%; border:none; background:transparent; color:var(--text3); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.cmp-chip-rm:hover { color:var(--neg); }
 .cmp-venue-input::placeholder { color:var(--text3); }
 .cmp-suggestions { position:absolute; top:100%; left:0; right:0; background:var(--s1); border:1px solid var(--border); border-radius:var(--r-sm); box-shadow:0 4px 16px rgba(0,0,0,0.12); z-index:100; max-height:200px; overflow-y:auto; display:none; }
 .cmp-sug-item { padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border); }
@@ -419,32 +440,21 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
   </div>
   <div class="wrap">
     <div class="fcard">
-      <div class="section-label">Up to 5 venues</div>
-      <div id="cmp-inputs">
-        <div class="cmp-input-row" data-slot="0">
-          <input class="cmp-venue-input" type="text" placeholder="Venue name (e.g. Haywire)" oninput="cmpSuggest(this,0)">
-          <div class="cmp-suggestions" id="cmp-sug-0"></div>
-        </div>
-        <div class="cmp-input-row" data-slot="1">
-          <input class="cmp-venue-input" type="text" placeholder="Venue name" oninput="cmpSuggest(this,1)">
-          <div class="cmp-suggestions" id="cmp-sug-1"></div>
-        </div>
-        <div class="cmp-input-row" data-slot="2">
-          <input class="cmp-venue-input" type="text" placeholder="Venue name" oninput="cmpSuggest(this,2)">
-          <div class="cmp-suggestions" id="cmp-sug-2"></div>
-        </div>
-        <div class="cmp-input-row" data-slot="3">
-          <input class="cmp-venue-input" type="text" placeholder="Venue name" oninput="cmpSuggest(this,3)">
-          <div class="cmp-suggestions" id="cmp-sug-3"></div>
-        </div>
-        <div class="cmp-input-row" data-slot="4">
-          <input class="cmp-venue-input" type="text" placeholder="Venue name" oninput="cmpSuggest(this,4)">
-          <div class="cmp-suggestions" id="cmp-sug-4"></div>
-        </div>
+      <div class="section-label" style="margin-bottom:10px">Search venues — select up to 5 to compare</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="cmp-search-input" type="text" placeholder="Search by name, e.g. Haywire…"
+          style="flex:1;padding:10px 12px;border:1.5px solid var(--border2);border-radius:var(--r-sm);background:var(--s2);color:var(--text);font-size:14px;font-family:var(--sans);outline:none;"
+          oninput="cmpLiveSearch(this)" autocomplete="off" autocorrect="off">
+        <button class="btn-clear" onclick="cmpClearSearch()" style="white-space:nowrap">Clear</button>
+      </div>
+      <div id="cmp-search-results" style="display:none;margin-bottom:12px;border:1px solid var(--border2);border-radius:var(--r-sm);overflow:hidden;"></div>
+      <div id="cmp-selected-list" style="display:none;margin-bottom:10px">
+        <div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:6px">Selected venues</div>
+        <div id="cmp-chips"></div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:14px">
         <button class="btn-run" id="cmp-run-btn" onclick="runComparison()" disabled>Compare</button>
-        <button class="btn-clear" onclick="clearComparison()">Clear</button>
+        <button class="btn-clear" onclick="clearComparison()">Reset all</button>
         <span id="cmp-sel-count" style="font-family:var(--mono);font-size:11px;color:var(--text3);"></span>
       </div>
     </div>
@@ -1053,22 +1063,27 @@ function buildCitySummary(cyData, pyMapData) {
 
   document.getElementById('city-panel-title').textContent = 'Top 10 Cities' + (mLabel?' — '+mLabel:'');
 
-  var html = (function(){var isMob=window.innerWidth<640; return '<table class="city-tbl"><thead><tr><th style="text-align:left">City</th><th style="text-align:right">CY</th>'+(isMob?'':'<th style="text-align:right">$ Var</th><th style="text-align:right">%</th>')+'</tr></thead><tbody>';})();
-  var isMob = window.innerWidth < 640;
+  function cm(v) {
+    var n=parseFloat(v); if(isNaN(n)||n===0) return n===0?'$0':'—';
+    if(Math.abs(n)>=1000000) return '$'+(n/1000000).toFixed(1)+'M';
+    return '$'+Math.round(n/1000)+'K';
+  }
+  var html = '<table class="city-tbl"><thead><tr>'
+    +'<th style="text-align:left">City</th>'
+    +'<th style="text-align:right">CY</th>'
+    +'<th style="text-align:right">PY</th>'
+    +'<th style="text-align:right">$ Var</th>'
+    +'<th style="text-align:right">%</th>'
+    +'</tr></thead><tbody>';
   top.forEach(function(r, i) {
     var city = r.city.charAt(0) + r.city.slice(1).toLowerCase();
-    // Extra compact money for city table
-    function cm(v) {
-      var n=parseFloat(v); if(isNaN(n)||n===0) return n===0?'$0':'—';
-      if(Math.abs(n)>=1000000) return '$'+(n/1000000).toFixed(1)+'M';
-      return '$'+Math.round(n/1000)+'K';
-    }
-    html += '<tr>'+
-      '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px"><span style="color:#999;font-size:9px;margin-right:4px;">'+(i+1)+'</span>'+city+'</td>'+
-      '<td style="text-align:right">'+cm(r.cy)+'</td>'+
-      (isMob?'':'<td style="text-align:right" class="'+(r.varAmt>=0?'pos':'neg')+'">'+(r.varAmt>=0?'+':'')+cm(r.varAmt)+'</td>'+
-      '<td style="text-align:right" class="'+(r.varPct!==null?r.varPct>=0?'pos':'neg':'')+'">'+(r.varPct!==null?(r.varPct>=0?'+':'')+r.varPct.toFixed(1)+'%':'—')+'</td>')+
-      '</tr>';
+    html += '<tr>'
+      +'<td><span style="color:#999;font-size:9px;margin-right:3px;">'+(i+1)+'</span>'+city+'</td>'
+      +'<td style="text-align:right">'+cm(r.cy)+'</td>'
+      +'<td style="text-align:right">'+cm(r.py)+'</td>'
+      +'<td style="text-align:right" class="'+(r.varAmt>=0?'pos':'neg')+'">'+(r.varAmt>=0?'+':'')+cm(r.varAmt)+'</td>'
+      +'<td style="text-align:right" class="'+(r.varPct!==null?(r.varPct>=0?'pos':'neg'):'')+'">'+(r.varPct!==null?(r.varPct>=0?'+':'')+r.varPct.toFixed(1)+'%':'—')+'</td>'
+      +'</tr>';
   });
   html += '</tbody></table>';
   document.getElementById('city-table-wrap').innerHTML = html;
@@ -1535,64 +1550,125 @@ function findNearby(){
 
 
 // ── Venue Comparison ────────────────────────────────────────────────────────
-var cmpVenues   = [null,null,null,null,null]; // selected venue objects
-var cmpHistory  = {};                          // key -> array of period data
+var cmpVenues = [null,null,null,null,null]; // selected (up to 5)
+var cmpHistory = {};
+var cmpSearchTimer = null;
+var cmpAllResults = []; // last search results
 
 function cmpKey(v) {
   return (v.location_name||'') + '|' + (v.location_zip||'');
 }
 
-// Autocomplete: search TABC for venue names matching input
-var cmpSugTimers = {};
-function cmpSuggest(input, slot) {
+function cmpLiveSearch(input) {
   var q = input.value.trim();
-  var sugBox = document.getElementById('cmp-sug-' + slot);
-  clearTimeout(cmpSugTimers[slot]);
-  if (cmpVenues[slot]) { cmpVenues[slot] = null; input.classList.remove('cmp-confirmed'); updateCmpBtn(); }
-  if (q.length < 2) { sugBox.style.display = 'none'; return; }
-  cmpSugTimers[slot] = setTimeout(function() {
-    var url = 'https://data.texas.gov/resource/naix-2893.json?$select=location_name,location_city,location_address,location_zip,taxpayer_name&$where=' +
-      encodeURIComponent("upper(location_name) like '%" + q.toUpperCase().replace(/'/g,"''") + "%' AND total_receipts>=25000") +
-      '&$limit=10&$order=location_name';
+  var box = document.getElementById('cmp-search-results');
+  clearTimeout(cmpSearchTimer);
+  if (q.length < 2) { box.style.display = 'none'; return; }
+  cmpSearchTimer = setTimeout(function() {
+    var url = 'https://data.texas.gov/resource/naix-2893.json' +
+      '?$select=location_name,location_city,location_address,location_zip,taxpayer_name' +
+      '&$where=' + encodeURIComponent("upper(location_name) like '%" + q.toUpperCase().replace(/'/g,"''") + "%' AND total_receipts>=25000") +
+      '&$limit=20&$order=total_receipts DESC';
     fetch(url).then(function(r){return r.json();}).then(function(data){
       // Dedupe by name+zip
       var seen = {}, results = [];
       data.forEach(function(r) {
-        var k = (r.location_name||'') + '|' + (r.location_zip||'');
+        var k = cmpKey(r);
         if (!seen[k]) { seen[k]=true; results.push(r); }
       });
-      sugBox.innerHTML = '';
-      if (!results.length) { sugBox.style.display='none'; return; }
+      cmpAllResults = results;
+      box.innerHTML = '';
+      if (!results.length) { box.style.display='none'; return; }
       results.forEach(function(r) {
-        var div = document.createElement('div');
-        div.className = 'cmp-sug-item';
-        div.innerHTML = '<div class="cmp-sug-name">' + (r.location_name||'') + '</div>' +
-          '<div class="cmp-sug-addr">' + (r.location_address||'') + (r.location_city?', '+r.location_city:'') + ' ' + (r.location_zip||'') + '</div>';
-        div.onmousedown = function(e) {
-          e.preventDefault(); // prevent input blur before click registers
-          cmpSelectVenue(slot, r);
-          input.value = r.location_name || '';
-          sugBox.style.display = 'none';
-        };
-        sugBox.appendChild(div);
+        var isSelected = cmpVenues.some(function(v){ return v && cmpKey(v)===cmpKey(r); });
+        var row = document.createElement('div');
+        row.className = 'cmp-result-row' + (isSelected?' selected':'');
+        var city = (r.location_city||'').charAt(0)+(r.location_city||'').slice(1).toLowerCase();
+        var addr = r.location_address ? r.location_address+', '+city : city;
+        row.innerHTML =
+          '<input type="checkbox" class="cmp-result-cb"'+(isSelected?' checked':'')+'>' +
+          '<div class="cmp-result-info">' +
+            '<div class="cmp-result-name">'+(r.location_name||'')+'</div>' +
+            '<div class="cmp-result-sub">'+addr+' &nbsp;·&nbsp; '+(r.location_zip||'')+'</div>' +
+          '</div>';
+        var cb = row.querySelector('input');
+        function toggle(e) {
+          if (e && e.target === cb) return; // handled by change
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event('change'));
+        }
+        cb.addEventListener('change', function() {
+          if (cb.checked) {
+            var filled = cmpVenues.filter(function(v){return v!==null;});
+            if (filled.length >= 5) { cb.checked=false; return; }
+            var slot = cmpVenues.indexOf(null);
+            if (slot === -1) { cb.checked=false; return; }
+            cmpVenues[slot] = r;
+            row.classList.add('selected');
+          } else {
+            var key = cmpKey(r);
+            for (var i=0;i<cmpVenues.length;i++) {
+              if (cmpVenues[i] && cmpKey(cmpVenues[i])===key) { cmpVenues[i]=null; break; }
+            }
+            row.classList.remove('selected');
+          }
+          renderCmpChips();
+          updateCmpBtn();
+        });
+        row.addEventListener('click', function(e){
+          if (e.target===cb) return;
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event('change'));
+        });
+        box.appendChild(row);
       });
-      sugBox.style.display = 'block';
+      box.style.display = 'block';
     }).catch(function(){});
   }, 300);
 }
 
-// Close suggestions when clicking outside
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.cmp-input-row')) {
-    document.querySelectorAll('.cmp-suggestions').forEach(function(s){s.style.display='none';});
-  }
-});
+function renderCmpChips() {
+  var selected = cmpVenues.filter(function(v){return v!==null;});
+  var wrap = document.getElementById('cmp-selected-list');
+  var chips = document.getElementById('cmp-chips');
+  if (!selected.length) { wrap.style.display='none'; return; }
+  wrap.style.display = 'block';
+  chips.innerHTML = '';
+  selected.forEach(function(v) {
+    var city = (v.location_city||'').charAt(0)+(v.location_city||'').slice(1).toLowerCase();
+    var chip = document.createElement('div');
+    chip.className = 'cmp-chip';
+    chip.innerHTML =
+      '<span class="cmp-chip-name">'+(v.location_name||'')+'</span>' +
+      '<span class="cmp-chip-city">'+city+'</span>' +
+      '<button class="cmp-chip-rm" title="Remove">×</button>';
+    var key = cmpKey(v);
+    chip.querySelector('.cmp-chip-rm').onclick = function() {
+      for (var i=0;i<cmpVenues.length;i++) {
+        if (cmpVenues[i] && cmpKey(cmpVenues[i])===key) { cmpVenues[i]=null; break; }
+      }
+      renderCmpChips();
+      updateCmpBtn();
+      // Uncheck in results list if visible
+      var rows = document.querySelectorAll('#cmp-search-results .cmp-result-row');
+      rows.forEach(function(row){
+        var cb = row.querySelector('input');
+        if (cb && row.querySelector('.cmp-result-name') &&
+            row.querySelector('.cmp-result-name').textContent === (v.location_name||'')) {
+          cb.checked = false;
+          row.classList.remove('selected');
+        }
+      });
+    };
+    chips.appendChild(chip);
+  });
+}
 
-function cmpSelectVenue(slot, venue) {
-  cmpVenues[slot] = venue;
-  var inputs = document.querySelectorAll('.cmp-venue-input');
-  if (inputs[slot]) inputs[slot].classList.add('cmp-confirmed');
-  updateCmpBtn();
+function cmpClearSearch() {
+  var input = document.getElementById('cmp-search-input');
+  if (input) { input.value = ''; }
+  var box = document.getElementById('cmp-search-results');
+  if (box) { box.innerHTML=''; box.style.display='none'; }
 }
 
 function updateCmpBtn() {
@@ -1603,11 +1679,21 @@ function updateCmpBtn() {
   lbl.textContent = count >= 2 ? count + ' selected' : (count === 1 ? '1 selected — need 1 more' : '');
 }
 
+function cmpSelectVenue(slot, venue) {
+  cmpVenues[slot] = venue;
+  var inputs = document.querySelectorAll('.cmp-venue-input');
+  if (inputs[slot]) inputs[slot].classList.add('cmp-confirmed');
+  updateCmpBtn();
+}
+
 function clearComparison() {
   cmpVenues = [null,null,null,null,null];
   cmpHistory = {};
-  document.querySelectorAll('.cmp-venue-input').forEach(function(i){ i.value=''; i.classList.remove('cmp-confirmed'); });
-  document.querySelectorAll('.cmp-suggestions').forEach(function(s){s.style.display='none';});
+  cmpClearSearch();
+  var input = document.getElementById('cmp-search-input');
+  if (input) input.value = '';
+  document.getElementById('cmp-selected-list').style.display='none';
+  document.getElementById('cmp-chips').innerHTML='';
   document.getElementById('cmp-result').style.display='none';
   document.getElementById('cmp-status').style.display='none';
   document.getElementById('cmp-run-btn').disabled = true;
@@ -1621,34 +1707,7 @@ function runComparison() {
   status.style.display = 'block';
   status.textContent = 'Fetching history for ' + selected.length + ' venue(s)…';
   document.getElementById('cmp-result').style.display = 'none';
-
-  // Collect typed names from inputs and resolve any unselected ones
-  var inputs = document.querySelectorAll('.cmp-venue-input');
-  var resolvePromises = [];
-  inputs.forEach(function(inp, slot) {
-    var val = inp.value.trim();
-    if (!val) return;
-    if (cmpVenues[slot] && cmpVenues[slot].location_name.toLowerCase() === val.toLowerCase()) return; // already selected
-    // Typed but not selected from dropdown — look up exact match
-    resolvePromises.push(
-      fetch('https://data.texas.gov/resource/naix-2893.json?$select=location_name,location_city,location_address,location_zip,taxpayer_name&$where=' +
-        encodeURIComponent("upper(location_name) like '%" + val.toUpperCase().replace(/'/g,"''") + "%' AND total_receipts>=25000") +
-        '&$limit=1&$order=total_receipts DESC')
-      .then(function(r){return r.json();})
-      .then(function(data){
-        if (data && data.length) cmpVenues[slot] = data[0];
-      })
-    );
-  });
-
-  Promise.all(resolvePromises).then(function() {
-    var selected = cmpVenues.filter(function(v){return v!==null;});
-    if (!selected.length) {
-      status.textContent = 'No venues found. Try a more specific name.';
-      return;
-    }
-    status.textContent = 'Fetching history for ' + selected.length + ' venue(s)…';
-    var promises = selected.map(function(v) {
+  var promises = selected.map(function(v) {
     var where = "upper(location_name)='" + (v.location_name||'').toUpperCase().replace(/'/g,"''") + "'" +
       " AND location_zip='" + (v.location_zip||'') + "'";
     var url = 'https://data.texas.gov/resource/naix-2893.json?$where=' + encodeURIComponent(where) +
@@ -1657,15 +1716,14 @@ function runComparison() {
       cmpHistory[cmpKey(v)] = data;
     });
   });
-
-    Promise.all(promises).then(function() {
-      status.style.display = 'none';
-      renderComparison(selected);
-    }).catch(function(e){
-      status.textContent = 'Error: ' + e.message;
-    });
+  Promise.all(promises).then(function() {
+    status.style.display = 'none';
+    renderComparison(selected);
+  }).catch(function(e){
+    status.textContent = 'Error: ' + e.message;
   });
 }
+
 
 function renderComparison(selected) {
   var grid = document.getElementById('cmp-grid');

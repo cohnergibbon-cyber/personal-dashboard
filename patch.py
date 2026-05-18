@@ -8,51 +8,84 @@ with open(path, 'r', encoding='utf-8') as f:
 print('File size before:', len(c))
 changes = 0
 
-# 1. City table header - responsive (2 cols mobile, 4 cols desktop)
-old_hdr = "'<table class=\"city-tbl\"><thead><tr><th>City</th><th>CY</th><th>PY</th><th>$ Var</th><th>% Var</th></tr></thead><tbody>'"
-new_hdr = """(function(){var isMob=window.innerWidth<640; return '<table class=\"city-tbl\"><thead><tr><th style=\"text-align:left\">City</th><th style=\"text-align:right\">CY</th>'+(isMob?'':'<th style=\"text-align:right\">$ Var</th><th style=\"text-align:right\">%</th>')+'</tr></thead><tbody>';})()"""
-if old_hdr in c: c = c.replace(old_hdr, new_hdr); print('1. City header: fixed'); changes += 1
-else: print('1. City header: not found')
+# Fix runComparison to also resolve typed-but-not-selected venue names
+old_run = """function runComparison() {
+  var selected = cmpVenues.filter(function(v){return v!==null;});
+  if (!selected.length) { alert('Enter at least one venue name and select from the dropdown.'); return; }
 
-# 2. Add isMob var before top.forEach loop
-old_loop = '  top.forEach(function(r, i) {'
-new_loop = '  var isMob = window.innerWidth < 640;\n  top.forEach(function(r, i) {'
-if old_loop in c and 'var isMob' not in c[c.find('top.forEach')-60:c.find('top.forEach')]:
-    c = c.replace(old_loop, new_loop, 1); print('2. isMob var: added'); changes += 1
-else: print('2. isMob var: already present or loop not found')
+  var status = document.getElementById('cmp-status');
+  status.style.display = 'block';
+  status.textContent = 'Fetching history for ' + selected.length + ' venue(s)…';
+  document.getElementById('cmp-result').style.display = 'none';
 
-# 3. City rows - show var cols only on desktop, fix city ellipsis
-old_row = """html += '<tr>'+
-      '<td><span style="color:#999;font-size:9px;margin-right:4px;">'+(i+1)+'</span>'+city+'</td>'+
-      '<td>'+cm(r.cy)+'</td>'+
-      '<td>'+(r.py?cm(r.py):'—')+'</td>'+
-      '<td class="'+(r.varAmt>=0?'pos':'neg')+'">'+(r.varAmt>=0?'+':'')+cm(r.varAmt)+'</td>'+
-      '<td class="'+(r.varPct!==null?r.varPct>=0?'pos':'neg':'')+'\">'+(r.varPct!==null?(r.varPct>=0?'+':'')+r.varPct.toFixed(1)+'%':'—')+'</td>'+
-      '</tr>';"""
-new_row = """html += '<tr>'+
-      '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px"><span style="color:#999;font-size:9px;margin-right:4px;">'+(i+1)+'</span>'+city+'</td>'+
-      '<td style="text-align:right">'+cm(r.cy)+'</td>'+
-      (isMob?'':'<td style="text-align:right" class="'+(r.varAmt>=0?'pos':'neg')+'">'+(r.varAmt>=0?'+':'')+cm(r.varAmt)+'</td>'+
-      '<td style="text-align:right" class="'+(r.varPct!==null?r.varPct>=0?'pos':'neg':'')+'\">'+(r.varPct!==null?(r.varPct>=0?'+':'')+r.varPct.toFixed(1)+'%':'—')+'</td>')+
-      '</tr>';"""
-if old_row in c: c = c.replace(old_row, new_row); print('3. City rows: fixed'); changes += 1
-else: print('3. City rows: not found - may already be fixed')
+  var promises = selected.map(function(v) {"""
 
-# 4. History table scroll
-old_hist = 'Full history</div><div class="hist-wrap"><table>'
-new_hist = 'Full history</div><div class="hist-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="min-width:420px">'
-if old_hist in c: c = c.replace(old_hist, new_hist); print('4. History scroll: fixed'); changes += 1
-else: print('4. History scroll: already fixed or not found')
+new_run = """function runComparison() {
+  var status = document.getElementById('cmp-status');
+  status.style.display = 'block';
+  status.textContent = 'Resolving venues…';
+  document.getElementById('cmp-result').style.display = 'none';
 
-# 5. city-tbl remove fixed layout
-c = c.replace(
-    '.city-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }',
-    '.city-tbl { width: 100%; border-collapse: collapse; }'
-)
-print('5. city-tbl CSS: updated')
+  // Collect typed names from inputs and resolve any unselected ones
+  var inputs = document.querySelectorAll('.cmp-venue-input');
+  var resolvePromises = [];
+  inputs.forEach(function(inp, slot) {
+    var val = inp.value.trim();
+    if (!val) return;
+    if (cmpVenues[slot] && cmpVenues[slot].location_name.toLowerCase() === val.toLowerCase()) return; // already selected
+    // Typed but not selected from dropdown — look up exact match
+    resolvePromises.push(
+      fetch('https://data.texas.gov/resource/naix-2893.json?$select=location_name,location_city,location_address,location_zip,taxpayer_name&$where=' +
+        encodeURIComponent("upper(location_name) like '%" + val.toUpperCase().replace(/'/g,"''") + "%' AND total_receipts>=25000") +
+        '&$limit=1&$order=total_receipts DESC')
+      .then(function(r){return r.json();})
+      .then(function(data){
+        if (data && data.length) cmpVenues[slot] = data[0];
+      })
+    );
+  });
+
+  Promise.all(resolvePromises).then(function() {
+    var selected = cmpVenues.filter(function(v){return v!==null;});
+    if (!selected.length) {
+      status.textContent = 'No venues found. Try a more specific name.';
+      return;
+    }
+    status.textContent = 'Fetching history for ' + selected.length + ' venue(s)…';
+    var promises = selected.map(function(v) {"""
+
+old_run_end = """  Promise.all(promises).then(function() {
+    status.style.display = 'none';
+    renderComparison(selected);
+  }).catch(function(e){
+    status.textContent = 'Error: ' + e.message;
+  });
+}"""
+
+new_run_end = """    Promise.all(promises).then(function() {
+      status.style.display = 'none';
+      renderComparison(selected);
+    }).catch(function(e){
+      status.textContent = 'Error: ' + e.message;
+    });
+  });
+}"""
+
+if old_run in c:
+    c = c.replace(old_run, new_run)
+    print('1. runComparison top: fixed'); changes += 1
+else:
+    print('1. runComparison top: not found')
+
+if old_run_end in c:
+    c = c.replace(old_run_end, new_run_end)
+    print('2. runComparison end: fixed'); changes += 1
+else:
+    print('2. runComparison end: not found')
 
 with open(path, 'w', encoding='utf-8') as f:
     f.write(c)
+
 print('File size after:', len(c))
 print('Changes made:', changes)
 print('Done.')

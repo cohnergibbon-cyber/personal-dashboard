@@ -1483,15 +1483,38 @@ function clearComparison() {
 }
 
 function runComparison() {
-  var selected = cmpVenues.filter(function(v){return v!==null;});
-  if (!selected.length) { alert('Enter at least one venue name and select from the dropdown.'); return; }
-
   var status = document.getElementById('cmp-status');
   status.style.display = 'block';
-  status.textContent = 'Fetching history for ' + selected.length + ' venue(s)…';
+  status.textContent = 'Resolving venues…';
   document.getElementById('cmp-result').style.display = 'none';
 
-  var promises = selected.map(function(v) {
+  // Collect typed names from inputs and resolve any unselected ones
+  var inputs = document.querySelectorAll('.cmp-venue-input');
+  var resolvePromises = [];
+  inputs.forEach(function(inp, slot) {
+    var val = inp.value.trim();
+    if (!val) return;
+    if (cmpVenues[slot] && cmpVenues[slot].location_name.toLowerCase() === val.toLowerCase()) return; // already selected
+    // Typed but not selected from dropdown — look up exact match
+    resolvePromises.push(
+      fetch('https://data.texas.gov/resource/naix-2893.json?$select=location_name,location_city,location_address,location_zip,taxpayer_name&$where=' +
+        encodeURIComponent("upper(location_name) like '%" + val.toUpperCase().replace(/'/g,"''") + "%' AND total_receipts>=25000") +
+        '&$limit=1&$order=total_receipts DESC')
+      .then(function(r){return r.json();})
+      .then(function(data){
+        if (data && data.length) cmpVenues[slot] = data[0];
+      })
+    );
+  });
+
+  Promise.all(resolvePromises).then(function() {
+    var selected = cmpVenues.filter(function(v){return v!==null;});
+    if (!selected.length) {
+      status.textContent = 'No venues found. Try a more specific name.';
+      return;
+    }
+    status.textContent = 'Fetching history for ' + selected.length + ' venue(s)…';
+    var promises = selected.map(function(v) {
     var where = "upper(location_name)='" + (v.location_name||'').toUpperCase().replace(/'/g,"''") + "'" +
       " AND location_zip='" + (v.location_zip||'') + "'";
     var url = 'https://data.texas.gov/resource/naix-2893.json?$where=' + encodeURIComponent(where) +
@@ -1501,11 +1524,12 @@ function runComparison() {
     });
   });
 
-  Promise.all(promises).then(function() {
-    status.style.display = 'none';
-    renderComparison(selected);
-  }).catch(function(e){
-    status.textContent = 'Error: ' + e.message;
+    Promise.all(promises).then(function() {
+      status.style.display = 'none';
+      renderComparison(selected);
+    }).catch(function(e){
+      status.textContent = 'Error: ' + e.message;
+    });
   });
 }
 

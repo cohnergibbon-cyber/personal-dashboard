@@ -553,50 +553,14 @@ function fmtDate(v) {
   return v;
 }
 
-function fmtPct(n) { if (!isFinite(n)) return '—'; return (n>=0?'+':'')+n.toFixed(1)+'%'; }
-function varClass(n) { if (!isFinite(n)||n===0) return ''; return n>0?'pos':'neg'; }
+function fmtPct(n) { if (n===null||n===undefined||!isFinite(n)) return '—'; return (n>=0?'+':'')+n.toFixed(1)+'%'; }
+function varClass(n) { if (n===null||n===undefined||!isFinite(n)||n===0) return ''; return n>0?'pos':'neg'; }
 
 function parsePeriod(v) {
   if (!v) return null;
   var s = String(v).replace(/-/g,'').replace(/T.*/,'');
   if (s.length >= 6) return { year: parseInt(s.slice(0,4)), month: parseInt(s.slice(4,6)) };
   return null;
-}
-
-function buildWhereFilters(yearOverride, monthOverride) {
-  var taxpayer = document.getElementById('f-taxpayer').value.trim();
-  var cityEl = document.getElementById('f-city');
-  var selectedCities = Array.from(cityEl.selectedOptions).map(function(o){return o.value;}).filter(Boolean);
-  var zip = document.getElementById('f-zip').value.trim();
-  var month = monthOverride !== undefined ? monthOverride : document.getElementById('f-month').value;
-  var year = yearOverride || document.getElementById('f-year').value;
-
-  var where = [];
-  if (taxpayer) { var tUp2 = taxpayer.toUpperCase().replace(/'/g,"''"); where.push("(upper(taxpayer_name) like '%" + tUp2 + "%' OR upper(location_name) like '%" + tUp2 + "%')"); }
-  if (city) where.push("upper(location_city)='" + city.toUpperCase().replace(/'/g,"''") + "'");
-  if (zip) where.push("location_zip='" + zip.replace(/'/g,"''") + "'");
-  if (month === 'YTD' && year) {
-    // YTD: Jan 1 through end of year (API will only have data through current month)
-    where.push("obligation_end_date_yyyymmdd>='" + year + "-01-01T00:00:00.000'");
-    where.push("obligation_end_date_yyyymmdd<'" + (parseInt(year)+1) + "-01-01T00:00:00.000'");
-  } else if (month && month !== 'YTD' && year) {
-    var nm = parseInt(month)===12?1:parseInt(month)+1;
-    var ny = parseInt(month)===12?parseInt(year)+1:parseInt(year);
-    var pad = nm<10?'0'+nm:String(nm);
-    where.push("obligation_end_date_yyyymmdd>='" + year + "-" + month + "-01T00:00:00.000'");
-    where.push("obligation_end_date_yyyymmdd<'" + ny + "-" + pad + "-01T00:00:00.000'");
-  } else if (year && !month) {
-    where.push("obligation_end_date_yyyymmdd>='" + year + "-01-01T00:00:00.000'");
-    where.push("obligation_end_date_yyyymmdd<'" + (parseInt(year)+1) + "-01-01T00:00:00.000'");
-  }
-  return where;
-}
-
-function buildUrl(yearOverride, monthOverride) {
-  var where = buildWhereFilters(yearOverride, monthOverride);
-  var url = API + '?$limit=5000&$order=total_receipts+DESC&$select=location_name,location_city,location_address,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name';
-  if (where.length) url += '&$where=' + encodeURIComponent(where.join(' AND '));
-  return url;
 }
 
 function runQuery() {
@@ -634,7 +598,7 @@ function runQuery() {
     var hasOther = selectedCities.indexOf('OTHER') > -1;
     var namedCities = selectedCities.filter(function(c){return c!=='OTHER';});
     if (hasOther && namedCities.length === 0) {
-      var top50 = ['DALLAS','FORT WORTH','FT WORTH','ARLINGTON','PLANO','IRVING','GARLAND','FRISCO','MCKINNEY','GRAND PRAIRIE','MESQUITE','DENTON','CARROLLTON','RICHARDSON','LEWISVILLE','ALLEN','GRAPEVINE','SOUTHLAKE','FLOWER MOUND','CEDAR HILL','MANSFIELD','EULESS','BEDFORD','HURST','KELLER','ROCKWALL','THE COLONY','ADDISON','HIGHLAND PARK','BURLESON','COPPELL','COLLEYVILLE','WAXAHACHIE','DUNCANVILLE','DESOTO','ROWLETT','WYLIE','FORNEY','HOUSTON','SUGAR LAND','PEARLAND','LEAGUE CITY','PASADENA','CONROE','THE WOODLANDS','BAYTOWN','FRIENDSWOOD','STAFFORD','MISSOURI CITY','KATY','SPRING','HUMBLE','CLEAR LAKE','CYPRESS','WEBSTER','KEMAH','SHENANDOAH','TOMBALL','MONTGOMERY','AUSTIN','ROUND ROCK','CEDAR PARK','PFLUGERVILLE','SAN MARCOS','KYLE','BUDA','GEORGETOWN','LAKEWAY','BEE CAVE','SAN ANTONIO','NEW BRAUNFELS','SCHERTZ','LIVE OAK','UNIVERSAL CITY','BOERNE','SEGUIN','MCALLEN','BROWNSVILLE','LAREDO','EDINBURG','MISSION','HARLINGEN','PHARR','WESLACO','CORPUS CHRISTI','BEAUMONT','PORT ARTHUR','GALVESTON','VICTORIA','PORT LAVACA','EL PASO','MIDLAND','ODESSA','ABILENE','SAN ANGELO','LUBBOCK','AMARILLO','WICHITA FALLS','WACO','COLLEGE STATION','TYLER','LONGVIEW','KILLEEN','TEMPLE','LUFKIN','NACOGDOCHES','TEXARKANA','SHERMAN','MARSHALL','KERRVILLE','FREDERICKSBURG','MARBLE FALLS','BASTROP','WIMBERLEY','GRANBURY','STEPHENVILLE','BRYAN','SOUTH PADRE ISLAND'];
+      var top50 = TOP_METRO_CITIES;
       w.push("not upper(location_city) in ('"+top50.join("','")+"')");
     } else if (namedCities.length > 0 && !hasOther) {
       var expandedOnly = [];
@@ -645,7 +609,7 @@ function runQuery() {
         w.push("upper(location_city) in ('"+expandedOnly.join("','")+"')");
       }
     } else if (namedCities.length > 0 && hasOther) {
-      var top50b = ['DALLAS','FORT WORTH','FT WORTH','ARLINGTON','PLANO','IRVING','GARLAND','FRISCO','MCKINNEY','GRAND PRAIRIE','MESQUITE','DENTON','CARROLLTON','RICHARDSON','LEWISVILLE','ALLEN','GRAPEVINE','SOUTHLAKE','FLOWER MOUND','CEDAR HILL','MANSFIELD','EULESS','BEDFORD','HURST','KELLER','ROCKWALL','THE COLONY','ADDISON','HIGHLAND PARK','BURLESON','COPPELL','COLLEYVILLE','WAXAHACHIE','DUNCANVILLE','DESOTO','ROWLETT','WYLIE','FORNEY','HOUSTON','SUGAR LAND','PEARLAND','LEAGUE CITY','PASADENA','CONROE','THE WOODLANDS','BAYTOWN','FRIENDSWOOD','STAFFORD','MISSOURI CITY','KATY','SPRING','HUMBLE','CLEAR LAKE','CYPRESS','WEBSTER','KEMAH','SHENANDOAH','TOMBALL','MONTGOMERY','AUSTIN','ROUND ROCK','CEDAR PARK','PFLUGERVILLE','SAN MARCOS','KYLE','BUDA','GEORGETOWN','LAKEWAY','BEE CAVE','SAN ANTONIO','NEW BRAUNFELS','SCHERTZ','LIVE OAK','UNIVERSAL CITY','BOERNE','SEGUIN','MCALLEN','BROWNSVILLE','LAREDO','EDINBURG','MISSION','HARLINGEN','PHARR','WESLACO','CORPUS CHRISTI','BEAUMONT','PORT ARTHUR','GALVESTON','VICTORIA','PORT LAVACA','EL PASO','MIDLAND','ODESSA','ABILENE','SAN ANGELO','LUBBOCK','AMARILLO','WICHITA FALLS','WACO','COLLEGE STATION','TYLER','LONGVIEW','KILLEEN','TEMPLE','LUFKIN','NACOGDOCHES','TEXARKANA','SHERMAN','MARSHALL','KERRVILLE','FREDERICKSBURG','MARBLE FALLS','BASTROP','WIMBERLEY','GRANBURY','STEPHENVILLE','BRYAN','SOUTH PADRE ISLAND'];
+      var top50b = TOP_METRO_CITIES;
       var expandedNamed = [];
       namedCities.forEach(function(c){expandedNamed.push(c);if(c==='FORT WORTH')expandedNamed.push('FT WORTH');});
       var notNamed = top50b.filter(function(c){return namedCities.indexOf(c)===-1;});
@@ -813,7 +777,7 @@ function renderTable() {
     var args=[r.location_name||'',r.taxpayer_name||'',r.obligation_end_date_yyyymmdd||'',r.location_city||'',r.location_zip||'',r.location_address||''];
     if(isMobile && cardList) {
       var varHtml='';
-      if(varAmt!==null){var cls=varClass(varAmt);varHtml='<div class="venue-stat '+cls+'">'+(varAmt>=0?'+':'')+fmtMoney(varAmt,false)+' ('+fmtPct(varPct)+')</div>';}
+      if(varAmt!==null){var cls=varClass(varAmt);var pctStr=(varPct!==null?' ('+fmtPct(varPct)+')':'');varHtml='<div class="venue-stat '+cls+'">'+(varAmt>=0?'+':'')+fmtMoney(varAmt,false)+pctStr+'</div>';}
       var card=document.createElement('div');
       card.className='venue-card';
       card.innerHTML=
@@ -1093,7 +1057,9 @@ function buildCitySummary(cyData, pyMapData) {
 
 
 var CITY_OPTIONS_HTML = "<div class=\"city-group-hdr\" data-group=\"dfw_metroplex\" style=\"padding:5px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#6b6b68;background:#f5f5f3;border-top:1px solid #e8e8e6;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;\"><span>DFW Metroplex</span><span class=\"group-check\" id=\"gc-dfw_metroplex\" style=\"font-size:10px;color:#999;font-weight:400;text-transform:none;\">Select all</span></div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"DALLAS\" onchange=\"cityOptionChange()\" />Dallas</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"FORT WORTH\" onchange=\"cityOptionChange()\" />Fort Worth</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"ARLINGTON\" onchange=\"cityOptionChange()\" />Arlington</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"PLANO\" onchange=\"cityOptionChange()\" />Plano</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"IRVING\" onchange=\"cityOptionChange()\" />Irving</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"GARLAND\" onchange=\"cityOptionChange()\" />Garland</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"FRISCO\" onchange=\"cityOptionChange()\" />Frisco</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"MCKINNEY\" onchange=\"cityOptionChange()\" />McKinney</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"GRAND PRAIRIE\" onchange=\"cityOptionChange()\" />Grand Prairie</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"MESQUITE\" onchange=\"cityOptionChange()\" />Mesquite</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"DENTON\" onchange=\"cityOptionChange()\" />Denton</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"CARROLLTON\" onchange=\"cityOptionChange()\" />Carrollton</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"RICHARDSON\" onchange=\"cityOptionChange()\" />Richardson</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"LEWISVILLE\" onchange=\"cityOptionChange()\" />Lewisville</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"ALLEN\" onchange=\"cityOptionChange()\" />Allen</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"GRAPEVINE\" onchange=\"cityOptionChange()\" />Grapevine</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"SOUTHLAKE\" onchange=\"cityOptionChange()\" />Southlake</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"FLOWER MOUND\" onchange=\"cityOptionChange()\" />Flower Mound</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"CEDAR HILL\" onchange=\"cityOptionChange()\" />Cedar Hill</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"MANSFIELD\" onchange=\"cityOptionChange()\" />Mansfield</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"EULESS\" onchange=\"cityOptionChange()\" />Euless</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"BEDFORD\" onchange=\"cityOptionChange()\" />Bedford</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"HURST\" onchange=\"cityOptionChange()\" />Hurst</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"KELLER\" onchange=\"cityOptionChange()\" />Keller</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"ROCKWALL\" onchange=\"cityOptionChange()\" />Rockwall</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"THE COLONY\" onchange=\"cityOptionChange()\" />The Colony</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"ADDISON\" onchange=\"cityOptionChange()\" />Addison</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"HIGHLAND PARK\" onchange=\"cityOptionChange()\" />Highland Park</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"BURLESON\" onchange=\"cityOptionChange()\" />Burleson</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"COPPELL\" onchange=\"cityOptionChange()\" />Coppell</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"COLLEYVILLE\" onchange=\"cityOptionChange()\" />Colleyville</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"WAXAHACHIE\" onchange=\"cityOptionChange()\" />Waxahachie</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"DUNCANVILLE\" onchange=\"cityOptionChange()\" />Duncanville</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"DESOTO\" onchange=\"cityOptionChange()\" />DeSoto</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"ROWLETT\" onchange=\"cityOptionChange()\" />Rowlett</div><div class=\"city-opt\" data-group=\"dfw_metroplex\"><input type=\"checkbox\" value=\"WYLIE\" onchange=\"cityOptionChange()\" />Wylie</div><div class=\"city-group-hdr\" data-group=\"houston_metro\" style=\"padding:5px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#6b6b68;background:#f5f5f3;border-top:1px solid #e8e8e6;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;\"><span>Houston Metro</span><span class=\"group-check\" id=\"gc-houston_metro\" style=\"font-size:10px;color:#999;font-weight:400;text-transform:none;\">Select all</span></div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"HOUSTON\" onchange=\"cityOptionChange()\" />Houston</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"SUGAR LAND\" onchange=\"cityOptionChange()\" />Sugar Land</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"PEARLAND\" onchange=\"cityOptionChange()\" />Pearland</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"LEAGUE CITY\" onchange=\"cityOptionChange()\" />League City</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"PASADENA\" onchange=\"cityOptionChange()\" />Pasadena</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"CONROE\" onchange=\"cityOptionChange()\" />Conroe</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"THE WOODLANDS\" onchange=\"cityOptionChange()\" />The Woodlands</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"BAYTOWN\" onchange=\"cityOptionChange()\" />Baytown</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"FRIENDSWOOD\" onchange=\"cityOptionChange()\" />Friendswood</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"STAFFORD\" onchange=\"cityOptionChange()\" />Stafford</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"MISSOURI CITY\" onchange=\"cityOptionChange()\" />Missouri City</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"KATY\" onchange=\"cityOptionChange()\" />Katy</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"SPRING\" onchange=\"cityOptionChange()\" />Spring</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"HUMBLE\" onchange=\"cityOptionChange()\" />Humble</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"CYPRESS\" onchange=\"cityOptionChange()\" />Cypress</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"WEBSTER\" onchange=\"cityOptionChange()\" />Webster</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"KEMAH\" onchange=\"cityOptionChange()\" />Kemah</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"SHENANDOAH\" onchange=\"cityOptionChange()\" />Shenandoah</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"CLEAR LAKE\" onchange=\"cityOptionChange()\" />Clear Lake</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"TOMBALL\" onchange=\"cityOptionChange()\" />Tomball</div><div class=\"city-opt\" data-group=\"houston_metro\"><input type=\"checkbox\" value=\"MONTGOMERY\" onchange=\"cityOptionChange()\" />Montgomery</div><div class=\"city-group-hdr\" data-group=\"austin_metro\" style=\"padding:5px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#6b6b68;background:#f5f5f3;border-top:1px solid #e8e8e6;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;\"><span>Austin Metro</span><span class=\"group-check\" id=\"gc-austin_metro\" style=\"font-size:10px;color:#999;font-weight:400;text-transform:none;\">Select all</span></div><div class=\"city-opt\" data-group=\"austin_metro\"><input type=\"checkbox\" value=\"AUSTIN\" onchange=\"cityOptionChange()\" />Austin</div><div class=\"city-opt\" data-group=\"austin_metro\"><input type=\"checkbox\" value=\"ROUND ROCK\" onchange=\"cityOptionChange()\" />Round Rock</div><div class=\"city-opt\" data-group=\"austin_metro\"><input type=\"checkbox\" value=\"CEDAR PARK\" onchange=\"cityOptionChange()\" />Cedar Park</div><div class=\"city-opt\" data-group=\"austin_metro\"><input type=\"checkbox\" value=\"PFLUGERVILLE\" onchange=\"cityOptionChange()\" />Pflugerville</div><div class=\"city-opt\" data-group=\"austin_metro\"><input type=\"checkbox\" value=\"SAN MARCOS\" onchange=\"cityOptionChange()\" />San Marcos</div><div class=\"city-opt\" data-group=\"austin_metro\"><input type=\"checkbox\" value=\"KYLE\" onchange=\"cityOptionChange()\" />Kyle</div><div class=\"city-opt\" data-group=\"austin_metro\"><input type=\"checkbox\" value=\"BUDA\" onchange=\"cityOptionChange()\" />Buda</div><div class=\"city-opt\" data-group=\"austin_metro\"><input type=\"checkbox\" value=\"GEORGETOWN\" onchange=\"cityOptionChange()\" />Georgetown</div><div class=\"city-opt\" data-group=\"austin_metro\"><input type=\"checkbox\" value=\"LAKEWAY\" onchange=\"cityOptionChange()\" />Lakeway</div><div class=\"city-opt\" data-group=\"austin_metro\"><input type=\"checkbox\" value=\"BEE CAVE\" onchange=\"cityOptionChange()\" />Bee Cave</div><div class=\"city-group-hdr\" data-group=\"san_antonio_metro\" style=\"padding:5px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#6b6b68;background:#f5f5f3;border-top:1px solid #e8e8e6;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;\"><span>San Antonio Metro</span><span class=\"group-check\" id=\"gc-san_antonio_metro\" style=\"font-size:10px;color:#999;font-weight:400;text-transform:none;\">Select all</span></div><div class=\"city-opt\" data-group=\"san_antonio_metro\"><input type=\"checkbox\" value=\"SAN ANTONIO\" onchange=\"cityOptionChange()\" />San Antonio</div><div class=\"city-opt\" data-group=\"san_antonio_metro\"><input type=\"checkbox\" value=\"NEW BRAUNFELS\" onchange=\"cityOptionChange()\" />New Braunfels</div><div class=\"city-opt\" data-group=\"san_antonio_metro\"><input type=\"checkbox\" value=\"SCHERTZ\" onchange=\"cityOptionChange()\" />Schertz</div><div class=\"city-opt\" data-group=\"san_antonio_metro\"><input type=\"checkbox\" value=\"LIVE OAK\" onchange=\"cityOptionChange()\" />Live Oak</div><div class=\"city-opt\" data-group=\"san_antonio_metro\"><input type=\"checkbox\" value=\"UNIVERSAL CITY\" onchange=\"cityOptionChange()\" />Universal City</div><div class=\"city-opt\" data-group=\"san_antonio_metro\"><input type=\"checkbox\" value=\"BOERNE\" onchange=\"cityOptionChange()\" />Boerne</div><div class=\"city-opt\" data-group=\"san_antonio_metro\"><input type=\"checkbox\" value=\"SEGUIN\" onchange=\"cityOptionChange()\" />Seguin</div><div class=\"city-group-hdr\" data-group=\"rio_grande_valley\" style=\"padding:5px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#6b6b68;background:#f5f5f3;border-top:1px solid #e8e8e6;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;\"><span>Rio Grande Valley</span><span class=\"group-check\" id=\"gc-rio_grande_valley\" style=\"font-size:10px;color:#999;font-weight:400;text-transform:none;\">Select all</span></div><div class=\"city-opt\" data-group=\"rio_grande_valley\"><input type=\"checkbox\" value=\"MCALLEN\" onchange=\"cityOptionChange()\" />McAllen</div><div class=\"city-opt\" data-group=\"rio_grande_valley\"><input type=\"checkbox\" value=\"BROWNSVILLE\" onchange=\"cityOptionChange()\" />Brownsville</div><div class=\"city-opt\" data-group=\"rio_grande_valley\"><input type=\"checkbox\" value=\"LAREDO\" onchange=\"cityOptionChange()\" />Laredo</div><div class=\"city-opt\" data-group=\"rio_grande_valley\"><input type=\"checkbox\" value=\"EDINBURG\" onchange=\"cityOptionChange()\" />Edinburg</div><div class=\"city-opt\" data-group=\"rio_grande_valley\"><input type=\"checkbox\" value=\"MISSION\" onchange=\"cityOptionChange()\" />Mission</div><div class=\"city-opt\" data-group=\"rio_grande_valley\"><input type=\"checkbox\" value=\"HARLINGEN\" onchange=\"cityOptionChange()\" />Harlingen</div><div class=\"city-opt\" data-group=\"rio_grande_valley\"><input type=\"checkbox\" value=\"PHARR\" onchange=\"cityOptionChange()\" />Pharr</div><div class=\"city-opt\" data-group=\"rio_grande_valley\"><input type=\"checkbox\" value=\"WESLACO\" onchange=\"cityOptionChange()\" />Weslaco</div><div class=\"city-group-hdr\" data-group=\"gulf_coast\" style=\"padding:5px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#6b6b68;background:#f5f5f3;border-top:1px solid #e8e8e6;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;\"><span>Gulf Coast</span><span class=\"group-check\" id=\"gc-gulf_coast\" style=\"font-size:10px;color:#999;font-weight:400;text-transform:none;\">Select all</span></div><div class=\"city-opt\" data-group=\"gulf_coast\"><input type=\"checkbox\" value=\"CORPUS CHRISTI\" onchange=\"cityOptionChange()\" />Corpus Christi</div><div class=\"city-opt\" data-group=\"gulf_coast\"><input type=\"checkbox\" value=\"BEAUMONT\" onchange=\"cityOptionChange()\" />Beaumont</div><div class=\"city-opt\" data-group=\"gulf_coast\"><input type=\"checkbox\" value=\"PORT ARTHUR\" onchange=\"cityOptionChange()\" />Port Arthur</div><div class=\"city-opt\" data-group=\"gulf_coast\"><input type=\"checkbox\" value=\"GALVESTON\" onchange=\"cityOptionChange()\" />Galveston</div><div class=\"city-opt\" data-group=\"gulf_coast\"><input type=\"checkbox\" value=\"VICTORIA\" onchange=\"cityOptionChange()\" />Victoria</div><div class=\"city-opt\" data-group=\"gulf_coast\"><input type=\"checkbox\" value=\"PORT LAVACA\" onchange=\"cityOptionChange()\" />Port Lavaca</div><div class=\"city-opt\" data-group=\"gulf_coast\"><input type=\"checkbox\" value=\"SOUTH PADRE ISLAND\" onchange=\"cityOptionChange()\" />South Padre Island</div><div class=\"city-group-hdr\" data-group=\"west_texas\" style=\"padding:5px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#6b6b68;background:#f5f5f3;border-top:1px solid #e8e8e6;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;\"><span>West Texas</span><span class=\"group-check\" id=\"gc-west_texas\" style=\"font-size:10px;color:#999;font-weight:400;text-transform:none;\">Select all</span></div><div class=\"city-opt\" data-group=\"west_texas\"><input type=\"checkbox\" value=\"EL PASO\" onchange=\"cityOptionChange()\" />El Paso</div><div class=\"city-opt\" data-group=\"west_texas\"><input type=\"checkbox\" value=\"MIDLAND\" onchange=\"cityOptionChange()\" />Midland</div><div class=\"city-opt\" data-group=\"west_texas\"><input type=\"checkbox\" value=\"ODESSA\" onchange=\"cityOptionChange()\" />Odessa</div><div class=\"city-opt\" data-group=\"west_texas\"><input type=\"checkbox\" value=\"ABILENE\" onchange=\"cityOptionChange()\" />Abilene</div><div class=\"city-opt\" data-group=\"west_texas\"><input type=\"checkbox\" value=\"SAN ANGELO\" onchange=\"cityOptionChange()\" />San Angelo</div><div class=\"city-opt\" data-group=\"west_texas\"><input type=\"checkbox\" value=\"LUBBOCK\" onchange=\"cityOptionChange()\" />Lubbock</div><div class=\"city-opt\" data-group=\"west_texas\"><input type=\"checkbox\" value=\"AMARILLO\" onchange=\"cityOptionChange()\" />Amarillo</div><div class=\"city-opt\" data-group=\"west_texas\"><input type=\"checkbox\" value=\"WICHITA FALLS\" onchange=\"cityOptionChange()\" />Wichita Falls</div><div class=\"city-group-hdr\" data-group=\"central_east_texas\" style=\"padding:5px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#6b6b68;background:#f5f5f3;border-top:1px solid #e8e8e6;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;\"><span>Central / East Texas</span><span class=\"group-check\" id=\"gc-central_east_texas\" style=\"font-size:10px;color:#999;font-weight:400;text-transform:none;\">Select all</span></div><div class=\"city-opt\" data-group=\"central_east_texas\"><input type=\"checkbox\" value=\"WACO\" onchange=\"cityOptionChange()\" />Waco</div><div class=\"city-opt\" data-group=\"central_east_texas\"><input type=\"checkbox\" value=\"COLLEGE STATION\" onchange=\"cityOptionChange()\" />College Station</div><div class=\"city-opt\" data-group=\"central___east_texas\"><input type=\"checkbox\" value=\"BRYAN\" onchange=\"cityOptionChange()\" />Bryan</div><div class=\"city-opt\" data-group=\"central_east_texas\"><input type=\"checkbox\" value=\"TYLER\" onchange=\"cityOptionChange()\" />Tyler</div><div class=\"city-opt\" data-group=\"central_east_texas\"><input type=\"checkbox\" value=\"LONGVIEW\" onchange=\"cityOptionChange()\" />Longview</div><div class=\"city-opt\" data-group=\"central_east_texas\"><input type=\"checkbox\" value=\"KILLEEN\" onchange=\"cityOptionChange()\" />Killeen</div><div class=\"city-opt\" data-group=\"central_east_texas\"><input type=\"checkbox\" value=\"TEMPLE\" onchange=\"cityOptionChange()\" />Temple</div><div class=\"city-opt\" data-group=\"central_east_texas\"><input type=\"checkbox\" value=\"LUFKIN\" onchange=\"cityOptionChange()\" />Lufkin</div><div class=\"city-opt\" data-group=\"central_east_texas\"><input type=\"checkbox\" value=\"NACOGDOCHES\" onchange=\"cityOptionChange()\" />Nacogdoches</div><div class=\"city-opt\" data-group=\"central_east_texas\"><input type=\"checkbox\" value=\"TEXARKANA\" onchange=\"cityOptionChange()\" />Texarkana</div><div class=\"city-opt\" data-group=\"central_east_texas\"><input type=\"checkbox\" value=\"SHERMAN\" onchange=\"cityOptionChange()\" />Sherman</div><div class=\"city-opt\" data-group=\"central_east_texas\"><input type=\"checkbox\" value=\"MARSHALL\" onchange=\"cityOptionChange()\" />Marshall</div><div class=\"city-group-hdr\" data-group=\"hill_country\" style=\"padding:5px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#6b6b68;background:#f5f5f3;border-top:1px solid #e8e8e6;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;\"><span>Hill Country</span><span class=\"group-check\" id=\"gc-hill_country\" style=\"font-size:10px;color:#999;font-weight:400;text-transform:none;\">Select all</span></div><div class=\"city-opt\" data-group=\"hill_country\"><input type=\"checkbox\" value=\"KERRVILLE\" onchange=\"cityOptionChange()\" />Kerrville</div><div class=\"city-opt\" data-group=\"hill_country\"><input type=\"checkbox\" value=\"FREDERICKSBURG\" onchange=\"cityOptionChange()\" />Fredericksburg</div><div class=\"city-opt\" data-group=\"hill_country\"><input type=\"checkbox\" value=\"MARBLE FALLS\" onchange=\"cityOptionChange()\" />Marble Falls</div><div class=\"city-opt\" data-group=\"hill_country\"><input type=\"checkbox\" value=\"BASTROP\" onchange=\"cityOptionChange()\" />Bastrop</div><div class=\"city-opt\" data-group=\"hill_country\"><input type=\"checkbox\" value=\"WIMBERLEY\" onchange=\"cityOptionChange()\" />Wimberley</div><div class=\"city-opt\" data-group=\"hill_country\"><input type=\"checkbox\" value=\"GRANBURY\" onchange=\"cityOptionChange()\" />Granbury</div><div class=\"city-opt\" data-group=\"hill_country\"><input type=\"checkbox\" value=\"STEPHENVILLE\" onchange=\"cityOptionChange()\" />Stephenville</div><div style=\"padding:5px 10px 3px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#6b6b68;background:#f5f5f3;border-top:1px solid #e8e8e6;\">Other</div><div class=\"city-opt\"><input type=\"checkbox\" value=\"OTHER\" onchange=\"cityOptionChange()\" />\u2014 All other cities \u2014</div>";
+var TOP_METRO_CITIES_EXTRA = ['FT WORTH','FORNEY','BRYAN'];
 var CITY_GROUPS = {"dfw_metroplex": ["DALLAS", "FORT WORTH", "ARLINGTON", "PLANO", "IRVING", "GARLAND", "FRISCO", "MCKINNEY", "GRAND PRAIRIE", "MESQUITE", "DENTON", "CARROLLTON", "RICHARDSON", "LEWISVILLE", "ALLEN", "GRAPEVINE", "SOUTHLAKE", "FLOWER MOUND", "CEDAR HILL", "MANSFIELD", "EULESS", "BEDFORD", "HURST", "KELLER", "ROCKWALL", "THE COLONY", "ADDISON", "HIGHLAND PARK", "BURLESON", "COPPELL", "COLLEYVILLE", "WAXAHACHIE", "DUNCANVILLE", "DESOTO", "ROWLETT", "WYLIE"], "houston_metro": ["HOUSTON", "SUGAR LAND", "PEARLAND", "LEAGUE CITY", "PASADENA", "CONROE", "THE WOODLANDS", "BAYTOWN", "FRIENDSWOOD", "STAFFORD", "MISSOURI CITY", "KATY", "SPRING", "HUMBLE", "CLEAR LAKE", "CYPRESS", "WEBSTER", "KEMAH", "SHENANDOAH", "TOMBALL", "MONTGOMERY"], "austin_metro": ["AUSTIN", "ROUND ROCK", "CEDAR PARK", "PFLUGERVILLE", "SAN MARCOS", "KYLE", "BUDA", "GEORGETOWN", "LAKEWAY", "BEE CAVE"], "san_antonio_metro": ["SAN ANTONIO", "NEW BRAUNFELS", "SCHERTZ", "LIVE OAK", "UNIVERSAL CITY", "BOERNE", "SEGUIN"], "rio_grande_valley": ["MCALLEN", "BROWNSVILLE", "LAREDO", "EDINBURG", "MISSION", "HARLINGEN", "PHARR", "WESLACO"], "gulf_coast": ["CORPUS CHRISTI", "BEAUMONT", "PORT ARTHUR", "GALVESTON", "VICTORIA", "PORT LAVACA", "SOUTH PADRE ISLAND"], "west_texas": ["EL PASO", "MIDLAND", "ODESSA", "ABILENE", "SAN ANGELO", "LUBBOCK", "AMARILLO", "WICHITA FALLS"], "central_east_texas": ["WACO", "COLLEGE STATION", "TYLER", "LONGVIEW", "KILLEEN", "TEMPLE", "LUFKIN", "NACOGDOCHES", "TEXARKANA", "SHERMAN", "MARSHALL"], "hill_country": ["KERRVILLE", "FREDERICKSBURG", "MARBLE FALLS", "BASTROP", "WIMBERLEY", "GRANBURY", "STEPHENVILLE"]};
+var TOP_METRO_CITIES = Object.keys(CITY_GROUPS).reduce(function(acc,k){return acc.concat(CITY_GROUPS[k]);},[]).concat(TOP_METRO_CITIES_EXTRA);
 
 function initCityDropdown() {
   document.getElementById('city-options').innerHTML = CITY_OPTIONS_HTML;
@@ -1255,7 +1221,6 @@ function onYTDChange(cb) {
 // Wire up
 initCityDropdown();
 document.getElementById('btn-run').addEventListener('click',runQuery);
-var _btnClear=document.getElementById('btn-clear');if(_btnClear)_btnClear.addEventListener('click',clearAll);
 document.getElementById('btn-prev').addEventListener('click',function(){page=Math.max(1,page-1);renderTable();});
 document.getElementById('btn-next').addEventListener('click',function(){page=Math.min(Math.ceil(allRows.length/PER),page+1);renderTable();});
 
@@ -1272,6 +1237,37 @@ document.getElementById('btn-next').addEventListener('click',function(){page=Mat
 
 var _nearbyGeocoded = [];
 var _currentRadius = 1;
+var _geoLookupCache = null;
+function loadGeoLookup() {
+  if (_geoLookupCache) return Promise.resolve(_geoLookupCache);
+  return fetch('/static/tx_venues_geo.json')
+    .then(function(r){
+      if (!r.ok) throw new Error('tx_venues_geo.json not found — run geocode_tabc.py first');
+      return r.json();
+    })
+    .then(function(data){ _geoLookupCache = data; return data; });
+}
+function nearbyCityList(geoLookup, userLat, userLng, fallbackCity) {
+  var found = {};
+  Object.keys(geoLookup).forEach(function(k){
+    var coord = geoLookup[k];
+    if (!coord) return;
+    if (haverDist(userLat, userLng, coord[0], coord[1]) <= 5) {
+      var parts = k.split('|');
+      if (parts[1]) found[parts[1]] = true;
+    }
+  });
+  var cities = Object.keys(found);
+  if (!cities.length) cities = [fallbackCity];
+  if (cities.indexOf('FORT WORTH') > -1 && cities.indexOf('FT WORTH') === -1) cities.push('FT WORTH');
+  return cities;
+}
+function cityWhereClause(cities) {
+  var esc = cities.map(function(c){ return c.replace(/'/g,"''"); });
+  return esc.length === 1
+    ? "upper(location_city)='" + esc[0] + "'"
+    : "upper(location_city) in ('" + esc.join("','") + "')";
+}
 
 function setRadius(val) {
   _currentRadius = val;
@@ -1375,11 +1371,7 @@ function findNearbyByAddress(){
     var userLng = parseFloat(data[0].lon);
     status.textContent = 'Loading venue coordinates…';
 
-    fetch('/tx_venues_geo.json')
-    .then(function(r){
-      if (!r.ok) throw new Error('tx_venues_geo.json not found — run geocode_tabc.py first');
-      return r.json();
-    })
+    loadGeoLookup()
     .then(function(geoLookup){
       status.textContent = 'Finding nearest city…';
       return fetch('https://nominatim.openstreetmap.org/reverse?lat='+userLat+'&lon='+userLng+'&format=json&zoom=10',
@@ -1389,21 +1381,22 @@ function findNearbyByAddress(){
         var rawCity = (geo.address&&(geo.address.city||geo.address.town||geo.address.village||geo.address.suburb))||'';
         var city = rawCity.toUpperCase().trim();
         if (!city) throw new Error('Could not determine city from address');
-        status.textContent = 'Fetching venues in '+rawCity+'…';
+        status.textContent = 'Fetching nearby venues…';
         var _d=new Date(); _d.setMonth(_d.getMonth()-2);
         var month=String(_d.getMonth()+1).padStart(2,'0');
         var year=String(_d.getFullYear());
         var nm=parseInt(month)===12?1:parseInt(month)+1;
         var ny=parseInt(month)===12?parseInt(year)+1:parseInt(year);
         var pad=nm<10?'0'+nm:String(nm);
+        var nearCities = nearbyCityList(geoLookup, userLat, userLng, city);
         var where=[
-          "upper(location_city)='"+city.replace(/'/g,"''")+"'",
+          cityWhereClause(nearCities),
           "obligation_end_date_yyyymmdd>='"+year+'-'+month+"-01T00:00:00.000'",
           "obligation_end_date_yyyymmdd<'"+ny+'-'+pad+"-01T00:00:00.000'"
         ];
-        var url='https://data.texas.gov/resource/naix-2893.json?$limit=500&$select=location_name,location_address,location_city,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
+        var url='https://data.texas.gov/resource/naix-2893.json?$limit=3000&$select=location_name,location_address,location_city,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
         return fetch(url).then(function(r){return r.json();}).then(function(venues){
-          if (!venues||!venues.length) throw new Error('No venues found in '+rawCity);
+          if (!venues||!venues.length) throw new Error('No venues found near '+rawCity);
           var geocoded=[], missing=0;
           venues.forEach(function(v){
             var key=addrKey(v.location_address||'',v.location_city||'',v.location_zip||'');
@@ -1468,11 +1461,7 @@ function findNearby(){
     var userLat=pos.coords.latitude, userLng=pos.coords.longitude;
     status.textContent='Loading venue coordinates…';
 
-    fetch('/tx_venues_geo.json')
-    .then(function(r){
-      if(!r.ok) throw new Error('tx_venues_geo.json not found — run geocode_tabc.py first');
-      return r.json();
-    })
+    loadGeoLookup()
     .then(function(geoLookup){
       status.textContent='Finding your city…';
       return fetch('https://nominatim.openstreetmap.org/reverse?lat='+userLat+'&lon='+userLng+'&format=json&zoom=10',
@@ -1482,21 +1471,22 @@ function findNearby(){
         var rawCity=(geo.address&&(geo.address.city||geo.address.town||geo.address.village||geo.address.suburb))||'';
         var city=rawCity.toUpperCase().trim();
         if(!city) throw new Error('Could not determine city');
-        status.textContent='Fetching venues in '+rawCity+'…';
+        status.textContent='Fetching nearby venues…';
         var _d=new Date(); _d.setMonth(_d.getMonth()-2);
         var month=String(_d.getMonth()+1).padStart(2,'0');
         var year=String(_d.getFullYear());
         var nm=parseInt(month)===12?1:parseInt(month)+1;
         var ny=parseInt(month)===12?parseInt(year)+1:parseInt(year);
         var pad=nm<10?'0'+nm:String(nm);
+        var nearCities = nearbyCityList(geoLookup, userLat, userLng, city);
         var where=[
-          "upper(location_city)='"+city.replace(/'/g,"''")+"'",
+          cityWhereClause(nearCities),
           "obligation_end_date_yyyymmdd>='"+year+'-'+month+"-01T00:00:00.000'",
           "obligation_end_date_yyyymmdd<'"+ny+'-'+pad+"-01T00:00:00.000'"
         ];
-        var url='https://data.texas.gov/resource/naix-2893.json?$limit=500&$select=location_name,location_address,location_city,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
+        var url='https://data.texas.gov/resource/naix-2893.json?$limit=3000&$select=location_name,location_address,location_city,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
         return fetch(url).then(function(r){return r.json();}).then(function(venues){
-          if(!venues||!venues.length) throw new Error('No venues found in '+rawCity);
+          if(!venues||!venues.length) throw new Error('No venues found near '+rawCity);
           var geocoded=[], missing=0;
           venues.forEach(function(v){
             var key=addrKey(v.location_address||'',v.location_city||'',v.location_zip||'');

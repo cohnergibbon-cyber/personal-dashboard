@@ -1236,6 +1236,7 @@ document.getElementById('btn-next').addEventListener('click',function(){page=Mat
 
 
 var _nearbyGeocoded = [];
+var _nearbyMissingCount = 0;
 var _currentRadius = 1;
 var _geoLookupCache = null;
 function loadGeoLookup() {
@@ -1306,7 +1307,8 @@ function renderNearbyCards(geocoded, maxMi) {
     status.textContent='No venues within '+maxMi+' mi — try a larger radius.';
     results.innerHTML=''; return;
   }
-  status.textContent=filtered.length+' venue'+(filtered.length!==1?'s':'')+' within '+maxMi+' mi · '+periodLabel;
+  var missingNote = _nearbyMissingCount>0 ? ' · '+_nearbyMissingCount+' not shown (not yet mapped)' : '';
+  status.textContent=filtered.length+' venue'+(filtered.length!==1?'s':'')+' within '+maxMi+' mi · '+periodLabel+missingNote;
   var html='';
   filtered.forEach(function(v,i){
     var r=v.record;
@@ -1407,6 +1409,7 @@ function findNearbyByAddress(){
             } else { missing++; }
           });
           if (missing) console.log('[Nearby] '+missing+' venues missing from geo lookup');
+          _nearbyMissingCount = missing;
           var pyMonth=parseInt(month)===1?12:parseInt(month)-1;
           var pyYear=parseInt(month)===1?parseInt(year)-1:parseInt(year);
           var pyM=String(pyMonth).padStart(2,'0');
@@ -1415,11 +1418,11 @@ function findNearbyByAddress(){
           var pyNy=pyMonth===12?pyYear+1:pyYear;
           var pyPad=pyNm<10?'0'+pyNm:String(pyNm);
           var pyWhere=[
-            "upper(location_city)='"+city.replace(/'/g,"''")+"'",
+            cityWhereClause(nearCities),
             "obligation_end_date_yyyymmdd>='"+pyY+'-'+pyM+"-01T00:00:00.000'",
             "obligation_end_date_yyyymmdd<'"+pyNy+'-'+pyPad+"-01T00:00:00.000'"
           ];
-          var pyUrl='https://data.texas.gov/resource/naix-2893.json?$limit=500&$select=location_name,location_address,location_zip,total_receipts&$where='+encodeURIComponent(pyWhere.join(' AND '));
+          var pyUrl='https://data.texas.gov/resource/naix-2893.json?$limit=3000&$select=location_name,location_address,location_zip,total_receipts&$where='+encodeURIComponent(pyWhere.join(' AND '));
           return fetch(pyUrl).then(function(r){return r.json();}).then(function(pyVenues){
             var pyMap={};
             (pyVenues||[]).forEach(function(p){
@@ -1497,6 +1500,7 @@ function findNearby(){
             } else { missing++; }
           });
           if(missing) console.log('[Nearby] '+missing+' venues missing from geo lookup');
+          _nearbyMissingCount = missing;
 
           // Fetch PY data for same venues
           var pyMonth=parseInt(month)===1?12:parseInt(month)-1;
@@ -1507,11 +1511,11 @@ function findNearby(){
           var pyNy=pyMonth===12?pyYear+1:pyYear;
           var pyPad=pyNm<10?'0'+pyNm:String(pyNm);
           var pyWhere=[
-            "upper(location_city)='"+city.replace(/'/g,"''")+"'",
+            cityWhereClause(nearCities),
             "obligation_end_date_yyyymmdd>='"+pyY+'-'+pyM+"-01T00:00:00.000'",
             "obligation_end_date_yyyymmdd<'"+pyNy+'-'+pyPad+"-01T00:00:00.000'"
           ];
-          var pyUrl='https://data.texas.gov/resource/naix-2893.json?$limit=500&$select=location_name,location_address,location_zip,total_receipts&$where='+encodeURIComponent(pyWhere.join(' AND '));
+          var pyUrl='https://data.texas.gov/resource/naix-2893.json?$limit=3000&$select=location_name,location_address,location_zip,total_receipts&$where='+encodeURIComponent(pyWhere.join(' AND '));
           return fetch(pyUrl).then(function(r){return r.json();}).then(function(pyVenues){
             var pyMap={};
             (pyVenues||[]).forEach(function(p){

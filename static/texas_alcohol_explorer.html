@@ -311,8 +311,8 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
       <div class="section-label">Filters</div>
       <div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:10px;margin-bottom:12px;">
         <div>
-          <div class="flabel">Taxpayer</div>
-          <input id="f-taxpayer" type="text" placeholder="e.g. FB SOCIETY" autocomplete="off" autocorrect="off" autocapitalize="characters" />
+          <div class="flabel">Taxpayer / Business Name</div>
+          <input id="f-taxpayer" type="text" placeholder="e.g. FB SOCIETY or POSTINO" autocomplete="off" autocorrect="off" autocapitalize="characters" />
         </div>
         <div class="city-wrap">
           <div class="flabel">City</div>
@@ -572,7 +572,7 @@ function buildWhereFilters(yearOverride, monthOverride) {
   var year = yearOverride || document.getElementById('f-year').value;
 
   var where = [];
-  if (taxpayer) where.push("upper(taxpayer_name) like '%" + taxpayer.toUpperCase().replace(/'/g,"''") + "%'");
+  if (taxpayer) { var tUp2 = taxpayer.toUpperCase().replace(/'/g,"''"); where.push("(upper(taxpayer_name) like '%" + tUp2 + "%' OR upper(location_name) like '%" + tUp2 + "%')"); }
   if (city) where.push("upper(location_city)='" + city.toUpperCase().replace(/'/g,"''") + "'");
   if (zip) where.push("location_zip='" + zip.replace(/'/g,"''") + "'");
   if (month === 'YTD' && year) {
@@ -630,7 +630,7 @@ function runQuery() {
     var cityEl = document.getElementById('f-city');
     var selectedCities = Array.from(cityEl.selectedOptions).map(function(o){return o.value;}).filter(Boolean);
     var zip = document.getElementById('f-zip').value.trim();
-    if (taxpayer) w.push("upper(taxpayer_name) like '%"+taxpayer.toUpperCase().replace(/'/g,"''")+ "%'");
+    if (taxpayer) { var tUp = taxpayer.toUpperCase().replace(/'/g,"''"); w.push("(upper(taxpayer_name) like '%"+tUp+"%' OR upper(location_name) like '%"+tUp+"%')"); }
     var hasOther = selectedCities.indexOf('OTHER') > -1;
     var namedCities = selectedCities.filter(function(c){return c!=='OTHER';});
     if (hasOther && namedCities.length === 0) {

@@ -391,6 +391,77 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
   </div>
 </div>
 
+<!-- ── Openings ── -->
+<div id="openings-page" class="page">
+  <div class="hdr">
+    <div class="hdr-eyebrow">Texas Open Data · TABC License Information</div>
+    <h1 class="hdr-title"><strong>Openings</strong> <em>&amp; Closures</em></h1>
+  </div>
+  <div class="wrap">
+    <div class="fcard">
+      <div class="section-label">Filters</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <div class="flabel">City</div>
+          <select id="op-city" class="sel" style="width:100%"></select>
+        </div>
+        <div>
+          <div class="flabel">ZIP</div>
+          <input id="op-zip" type="text" inputmode="numeric" placeholder="75225" autocomplete="off" />
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div class="flabel">Period</div>
+        <div class="period-row">
+          <select id="op-month" class="sel">
+            <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+            <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+            <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+          <select id="op-year" class="sel"></select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-run" id="op-run-btn" onclick="runOpenings()">Run query</button>
+        <button class="btn-clear" onclick="clearOpenings()">Clear</button>
+        <span class="rcount" id="op-summary"></span>
+      </div>
+    </div>
+
+    <div class="err" id="op-err-box"></div>
+
+    <div class="placeholder" id="op-placeholder">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      <p>Set filters and tap <strong>Run query</strong><br>to see new &amp; closed MB permits</p>
+    </div>
+
+    <div id="op-results" style="display:none;">
+      <div class="tbl-hdr">
+        <span class="tbl-hint" id="op-new-hint">New Permits</span>
+        <button class="btn-sm" onclick="exportOpeningsCSV('new')">Export CSV</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Location</th><th>City</th><th>Address</th><th>Issue Date</th><th>Owner</th></tr></thead>
+          <tbody id="op-new-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="tbl-hdr" style="margin-top:20px;">
+        <span class="tbl-hint" id="op-closed-hint">Recently Closed</span>
+        <button class="btn-sm" onclick="exportOpeningsCSV('closed')">Export CSV</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Location</th><th>City</th><th>Address</th><th>Status</th><th>Status Change Date</th><th>Owner</th></tr></thead>
+          <tbody id="op-closed-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Modal ── -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
@@ -415,6 +486,10 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
   <button class="tab" id="tab-map" onclick="switchTab('map')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
     Nearby
+  </button>
+  <button class="tab" id="tab-openings" onclick="switchTab('openings')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    Openings
   </button>
 </nav>
 
@@ -1456,6 +1531,62 @@ function findNearby(){
   },{timeout:15000,enableHighAccuracy:true});
 }
 
+
+// ---- Openings tracker ----
+var LICENSE_API = 'https://data.texas.gov/resource/7hf9-qc9f.json';
+var opNewRows = [], opClosedRows = [];
+
+(function() {
+  var yr = new Date().getFullYear();
+  var ySel = document.getElementById('op-year');
+  for (var y = yr; y >= 2006; y--) {
+    var o = document.createElement('option');
+    o.value = String(y); o.textContent = String(y);
+    ySel.appendChild(o);
+  }
+
+  // Default to 2 months ago, matching Explorer's default (data updates daily,
+  // but 2-months-back keeps a full month's worth of issuances/closures visible by default)
+  var now = new Date();
+  now.setMonth(now.getMonth() - 2);
+  var defYear = String(now.getFullYear());
+  var defMonth = String(now.getMonth() + 1).padStart(2, '0');
+  ySel.value = defYear;
+  var mSel = document.getElementById('op-month');
+  for (var i = 0; i < mSel.options.length; i++) {
+    if (mSel.options[i].value === defMonth) { mSel.selectedIndex = i; break; }
+  }
+
+  var citySel = document.getElementById('op-city');
+  var allOpt = document.createElement('option');
+  allOpt.value = ''; allOpt.textContent = 'All cities';
+  citySel.appendChild(allOpt);
+  TOP_METRO_CITIES.slice().sort().forEach(function(c) {
+    var opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c.charAt(0) + c.slice(1).toLowerCase();
+    citySel.appendChild(opt);
+  });
+})();
+
+function opFmtDate(v) {
+  if (!v) return '—';
+  var s = String(v).replace(/T.*/,'');
+  var parts = s.split('-');
+  if (parts.length === 3) return parts[1] + '/' + parts[2] + '/' + parts[0];
+  return v;
+}
+
+function clearOpenings() {
+  document.getElementById('op-city').value = '';
+  document.getElementById('op-zip').value = '';
+  ['op-month','op-year'].forEach(function(id){ document.getElementById(id).selectedIndex = 0; });
+  opNewRows = []; opClosedRows = [];
+  document.getElementById('op-results').style.display = 'none';
+  document.getElementById('op-err-box').style.display = 'none';
+  document.getElementById('op-summary').textContent = '';
+  document.getElementById('op-placeholder').style.display = 'block';
+}
 
 // Tab switching
 function switchTab(tab) {

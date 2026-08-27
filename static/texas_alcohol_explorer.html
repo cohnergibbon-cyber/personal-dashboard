@@ -1611,6 +1611,8 @@ function runOpenings() {
   var zip = document.getElementById('op-zip').value.trim();
   var range = opDateRange(month, year);
 
+  var btn = document.getElementById('op-run-btn');
+  btn.textContent = 'Loading…'; btn.disabled = true;
   document.getElementById('op-placeholder').style.display = 'none';
   document.getElementById('op-err-box').style.display = 'none';
   document.getElementById('op-results').style.display = 'none';
@@ -1645,7 +1647,7 @@ function runOpenings() {
     document.getElementById('op-err-box').textContent = 'Error: ' + e.message;
     document.getElementById('op-err-box').style.display = 'block';
     document.getElementById('op-summary').textContent = '';
-  });
+  }).finally(function(){btn.textContent='Run query';btn.disabled=false;});
 }
 
 function renderOpenings(month, year) {
@@ -1663,6 +1665,8 @@ function renderOpenings(month, year) {
   } else {
     opNewRows.forEach(function(r) {
       var tr = document.createElement('tr');
+      // trade_name/owner -> locationName/taxpayerName is a name-matching heuristic across two
+      // independently-maintained datasets (license registry vs. receipts), not a guaranteed exact join.
       var args = [r.trade_name||'', r.owner||'', '', r.city||'', (r.zip||'').slice(0,5), r.address||''];
       tr.addEventListener('click', function(){ openHistory.apply(null, args); });
       tr.innerHTML =
@@ -1682,6 +1686,8 @@ function renderOpenings(month, year) {
   } else {
     opClosedRows.forEach(function(r) {
       var tr = document.createElement('tr');
+      // trade_name/owner -> locationName/taxpayerName is a name-matching heuristic across two
+      // independently-maintained datasets (license registry vs. receipts), not a guaranteed exact join.
       var args = [r.trade_name||'', r.owner||'', '', r.city||'', (r.zip||'').slice(0,5), r.address||''];
       tr.addEventListener('click', function(){ openHistory.apply(null, args); });
       tr.innerHTML =

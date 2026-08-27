@@ -1702,6 +1702,24 @@ function renderOpenings(month, year) {
   }
 }
 
+function exportOpeningsCSV(section) {
+  var rows = section === 'new' ? opNewRows : opClosedRows;
+  if (!rows.length) return;
+  var headers = section === 'new'
+    ? ['Location','City','Address','ZIP','Issue Date','Owner']
+    : ['Location','City','Address','ZIP','Status','Status Change Date','Owner'];
+  var out = [headers];
+  rows.forEach(function(r) {
+    if (section === 'new') {
+      out.push([r.trade_name||'', r.city||'', r.address||'', (r.zip||'').slice(0,5), opFmtDate(r.original_issue_date), r.owner||'']);
+    } else {
+      out.push([r.trade_name||'', r.city||'', r.address||'', (r.zip||'').slice(0,5), r.primary_status||'', opFmtDate(r.status_change_date), r.owner||'']);
+    }
+  });
+  var month = document.getElementById('op-month').value, year = document.getElementById('op-year').value;
+  downloadCSV(out, 'openings_'+section+'_'+year+'-'+month+'.csv');
+}
+
 // Tab switching
 function switchTab(tab) {
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});

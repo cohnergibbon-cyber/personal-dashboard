@@ -1588,6 +1588,114 @@ function clearOpenings() {
   document.getElementById('op-placeholder').style.display = 'block';
 }
 
+function opDateRange(month, year) {
+  var y = parseInt(year, 10), m = parseInt(month, 10);
+  var ny = m === 12 ? y + 1 : y;
+  var nm = m === 12 ? 1 : m + 1;
+  var pad = String(nm).padStart(2, '0');
+  return {
+    start: year + '-' + month + '-01T00:00:00.000',
+    end: ny + '-' + pad + '-01T00:00:00.000'
+  };
+}
+
+function currentOpFilterLabel() {
+  var city = document.getElementById('op-city').value;
+  return city ? (city.charAt(0) + city.slice(1).toLowerCase()) : '';
+}
+
+function runOpenings() {
+  var month = document.getElementById('op-month').value;
+  var year = document.getElementById('op-year').value;
+  var city = document.getElementById('op-city').value;
+  var zip = document.getElementById('op-zip').value.trim();
+  var range = opDateRange(month, year);
+
+  document.getElementById('op-placeholder').style.display = 'none';
+  document.getElementById('op-err-box').style.display = 'none';
+  document.getElementById('op-results').style.display = 'none';
+  document.getElementById('op-summary').textContent = 'Loading…';
+
+  var newWhere = "license_type='MB' AND original_issue_date>='" + range.start + "' AND original_issue_date<'" + range.end + "'";
+  var closedWhere = "license_type='MB' AND (primary_status='Cancelled' OR primary_status='Surrendered') AND status_change_date>='" + range.start + "' AND status_change_date<'" + range.end + "'";
+  if (city) {
+    var cityEsc = city.toUpperCase().replace(/'/g,"''");
+    newWhere += " AND upper(city)='" + cityEsc + "'";
+    closedWhere += " AND upper(city)='" + cityEsc + "'";
+  }
+  if (zip) {
+    var zipEsc = zip.replace(/'/g,"''");
+    newWhere += " AND starts_with(zip,'" + zipEsc + "')";
+    closedWhere += " AND starts_with(zip,'" + zipEsc + "')";
+  }
+
+  var newUrl = LICENSE_API + '?$limit=1000&$order=original_issue_date+DESC&$select=trade_name,owner,address,city,zip,original_issue_date&$where=' + encodeURIComponent(newWhere);
+  var closedUrl = LICENSE_API + '?$limit=1000&$order=status_change_date+DESC&$select=trade_name,owner,address,city,zip,primary_status,status_change_date&$where=' + encodeURIComponent(closedWhere);
+
+  Promise.all([
+    fetch(newUrl).then(function(r){ if(!r.ok) throw new Error('API error '+r.status); return r.json(); }),
+    fetch(closedUrl).then(function(r){ if(!r.ok) throw new Error('API error '+r.status); return r.json(); })
+  ]).then(function(results) {
+    opNewRows = results[0];
+    opClosedRows = results[1];
+    document.getElementById('op-summary').textContent = opNewRows.length + ' new · ' + opClosedRows.length + ' closed';
+    renderOpenings(month, year);
+    document.getElementById('op-results').style.display = 'block';
+  }).catch(function(e) {
+    document.getElementById('op-err-box').textContent = 'Error: ' + e.message;
+    document.getElementById('op-err-box').style.display = 'block';
+    document.getElementById('op-summary').textContent = '';
+  });
+}
+
+function renderOpenings(month, year) {
+  var mNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var periodLabel = mNames[parseInt(month,10)-1] + ' ' + year;
+  var filterSuffix = currentOpFilterLabel() ? ' for ' + currentOpFilterLabel() : '';
+
+  document.getElementById('op-new-hint').textContent = 'New Permits — ' + periodLabel;
+  document.getElementById('op-closed-hint').textContent = 'Recently Closed — ' + periodLabel;
+
+  var newBody = document.getElementById('op-new-tbody');
+  newBody.innerHTML = '';
+  if (!opNewRows.length) {
+    newBody.innerHTML = '<tr><td colspan="5" class="dim">No new MB permits issued in ' + periodLabel + filterSuffix + '.</td></tr>';
+  } else {
+    opNewRows.forEach(function(r) {
+      var tr = document.createElement('tr');
+      var args = [r.trade_name||'', r.owner||'', '', r.city||'', (r.zip||'').slice(0,5), r.address||''];
+      tr.addEventListener('click', function(){ openHistory.apply(null, args); });
+      tr.innerHTML =
+        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;font-weight:500">'+(r.trade_name||'—')+'</td>'+
+        '<td>'+(r.city||'—')+'</td>'+
+        '<td class="dim">'+(r.address||'—')+'</td>'+
+        '<td class="dim">'+opFmtDate(r.original_issue_date)+'</td>'+
+        '<td class="dim">'+(r.owner||'—')+'</td>';
+      newBody.appendChild(tr);
+    });
+  }
+
+  var closedBody = document.getElementById('op-closed-tbody');
+  closedBody.innerHTML = '';
+  if (!opClosedRows.length) {
+    closedBody.innerHTML = '<tr><td colspan="6" class="dim">No closures in ' + periodLabel + filterSuffix + '.</td></tr>';
+  } else {
+    opClosedRows.forEach(function(r) {
+      var tr = document.createElement('tr');
+      var args = [r.trade_name||'', r.owner||'', '', r.city||'', (r.zip||'').slice(0,5), r.address||''];
+      tr.addEventListener('click', function(){ openHistory.apply(null, args); });
+      tr.innerHTML =
+        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;font-weight:500">'+(r.trade_name||'—')+'</td>'+
+        '<td>'+(r.city||'—')+'</td>'+
+        '<td class="dim">'+(r.address||'—')+'</td>'+
+        '<td class="neg">'+(r.primary_status||'—')+'</td>'+
+        '<td class="dim">'+opFmtDate(r.status_change_date)+'</td>'+
+        '<td class="dim">'+(r.owner||'—')+'</td>';
+      closedBody.appendChild(tr);
+    });
+  }
+}
+
 // Tab switching
 function switchTab(tab) {
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});

@@ -927,7 +927,7 @@ function openHistory(locationName, taxpayerName, rowPeriod, locationCity, locati
         '</div>';
 
       html+='<div class="comp-section"><div class="comp-title">Period comparison — '+mLabel+'</div>';
-      html+='<table class="comp-table"><thead><tr><th></th><th>CY ('+refPeriod.year+')</th><th>PY ('+(refPeriod.year-1)+')</th><th>$ Variance</th><th>% Variance</th></tr></thead><tbody>';
+      html+='<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="comp-table"><thead><tr><th></th><th>CY ('+refPeriod.year+')</th><th>PY ('+(refPeriod.year-1)+')</th><th>$ Variance</th><th>% Variance</th></tr></thead><tbody>';
       html+='<tr><td>'+mLabel+'</td>'+
         '<td>'+(cyVal!==null?fmtMoney(cyVal,false):'—')+'</td>'+
         '<td>'+(pyVal!==null?fmtMoney(pyVal,false):'—')+'</td>'+
@@ -961,7 +961,7 @@ function openHistory(locationName, taxpayerName, rowPeriod, locationCity, locati
         '<td class="'+varClass(r12Var)+'">'+(r12CY&&r12PY?(r12Var>=0?'+':'')+fmtMoney(r12Var,false):'—')+'</td>'+
         '<td class="'+(r12Pct!==null?varClass(r12Pct):'')+'">'+(r12Pct!==null?fmtPct(r12Pct):'—')+'</td></tr>';
 
-      html+='</tbody></table></div>';
+      html+='</tbody></table></div></div>';
 
       html+='<div class="hist-section"><div class="hist-title">Full history</div><div class="hist-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="min-width:420px">';
       html+='<thead><tr><th>Period</th><th class="num">Total</th><th class="num">Liquor</th><th class="num">Wine</th><th class="num">Beer</th></tr></thead><tbody>';

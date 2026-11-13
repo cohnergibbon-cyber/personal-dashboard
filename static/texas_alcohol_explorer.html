@@ -1578,14 +1578,14 @@ var VTYPES = [
 var VT_STADIUM = /\b(STADIUM|ALAMODOME|DOME|FIELD|LEVY RESTAURANTS|ARAMARK SPORTS|DELAWARE NORTH|SPORTSERVICE|CENTERPLATE|ARENA|BALLPARK|BALL PARK|COLISEUM|SPEEDWAY|RACEWAY|RACETRACK|RACE TRACK|AT&T STADIUM|GLOBE LIFE|MINUTE MAID PARK|KYLE FIELD|DELL DIAMOND|TOYOTA CENTER|AMERICAN AIRLINES CENTER|FROST BANK CENTER|MOODY CENTER|CIRCUIT OF THE AMERICAS)\b/;
 var VT_HOTEL = /\b(GAYLORD|HOTEL|HOTELS|MOTEL|INN|INNS|SUITES|RESORT|RESORTS|LODGING|HILTON|MARRIOTT|HYATT|SHERATON|WESTIN|OMNI|WYNDHAM|DOUBLETREE|RITZ CARLTON|FOUR SEASONS|KIMPTON|INTERCONTINENTAL|CROWNE PLAZA|BEST WESTERN|LA QUINTA|DRURY|HAWTHORN|STAYBRIDGE|CANDLEWOOD)\b/;
 var VT_HOTEL_OWNER = /\b(HOTEL|HOTELS|RESORT|RESORTS|INN|HILTON|MARRIOTT|HYATT)\b/;
-var VT_ENTERTAINMENT = /\b(PAVILION|TEXAS LIVE|MUSIC VENUE|THEATER|THEATRE|THEATRES|CINEMA|CINEMAS|DRAFTHOUSE|MOVIE|MOVIES|AMC|CINEMARK|REGAL|BOWLING|LANES|TOPGOLF|GOLF|COUNTRY CLUB|CASINO|ARCADE|DAVE & BUSTERS|DAVE AND BUSTERS|MAIN EVENT|MUSEUM|ZOO|AQUARIUM|AMPHITHEATER|AMPHITHEATRE|CONCERT|MUSIC HALL|COMEDY|CONVENTION CENTER|CIVIC CENTER|FAIRGROUNDS|SKATING|TRAMPOLINE|KARTING|GO KARTS|ESCAPE ROOM|PLAYHOUSE|AUDITORIUM|THEME PARK|WATER PARK|SIX FLAGS|EVENT CENTER|EVENT VENUE|WEDDING VENUE|ENTERTAINMENT|BILLIARDS|POOL HALL|LIVE MUSIC|DANCE HALL|HONKY TONK)\b/;
+var VT_ENTERTAINMENT = /\b(BILLY BOB|PAVILION|TEXAS LIVE|MUSIC VENUE|THEATER|THEATRE|THEATRES|CINEMA|CINEMAS|DRAFTHOUSE|MOVIE|MOVIES|AMC|CINEMARK|REGAL|BOWLING|LANES|TOPGOLF|GOLF|COUNTRY CLUB|CASINO|ARCADE|DAVE & BUSTERS|DAVE AND BUSTERS|MAIN EVENT|MUSEUM|ZOO|AQUARIUM|AMPHITHEATER|AMPHITHEATRE|CONCERT|MUSIC HALL|COMEDY|CONVENTION CENTER|CIVIC CENTER|FAIRGROUNDS|SKATING|TRAMPOLINE|KARTING|GO KARTS|ESCAPE ROOM|PLAYHOUSE|AUDITORIUM|THEME PARK|WATER PARK|SIX FLAGS|EVENT CENTER|EVENT VENUE|WEDDING VENUE|ENTERTAINMENT|BILLIARDS|POOL HALL|LIVE MUSIC|DANCE HALL|HONKY TONK)\b/;
 var _vtFilter = {explorer:'all', nearby:'all', openings:'all'};
 
 function vtNorm(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
 
 // Address cross-reference built from OpenStreetMap (see build_venue_types.py). Loaded in the background.
-var _vtMap = null, VT_VER = 0;
-var VT_CODE = {h:'hotel', s:'stadium', e:'entertainment'};
+var _vtMap = null, _vtOv = null, VT_VER = 0;
+var VT_CODE = {h:'hotel', s:'stadium', e:'entertainment', r:'restaurant'};
 
 function vtKeyOf(addr, city, zip) {
   return (String(addr || '').toUpperCase().trim() + '|' + String(city || '').toUpperCase().trim() + '|' + String(zip || '').slice(0, 5));
@@ -1593,6 +1593,8 @@ function vtKeyOf(addr, city, zip) {
 
 function vtGetType(name, owner, key) {
   var n = vtNorm(name).replace(/\bPIZZA INN\b/g, 'PIZZA'), o = vtNorm(owner);  // "Pizza Inn" is not a hotel
+  // Hand-verified overrides win over everything
+  if (_vtOv && key && _vtOv[key] && VT_CODE[_vtOv[key]]) return VT_CODE[_vtOv[key]];
   // A name keyword is the strongest signal...
   if (VT_STADIUM.test(n)) return 'stadium';
   if (VT_HOTEL.test(n) || VT_HOTEL_OWNER.test(o)) return 'hotel';
@@ -1622,6 +1624,11 @@ fetch('/static/tx_venue_types.json')
   .then(function(r) { return r.ok ? r.json() : null; })
   .then(function(m) { if (m) { _vtMap = m; VT_VER++; vtRefreshViews(); } })
   .catch(function() { /* optional enhancement - name rules still apply */ });
+
+fetch('/static/tx_venue_overrides.json')
+  .then(function(r) { return r.ok ? r.json() : null; })
+  .then(function(m) { if (m) { _vtOv = m; VT_VER++; vtRefreshViews(); } })
+  .catch(function() { /* optional */ });
 
 function vtLabel(id) {
   for (var i = 0; i < VTYPES.length; i++) if (VTYPES[i].id === id) return VTYPES[i].label;

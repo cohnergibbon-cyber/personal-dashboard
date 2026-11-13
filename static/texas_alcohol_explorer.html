@@ -1594,7 +1594,10 @@ function vtKeyOf(addr, city, zip) {
 function vtGetType(name, owner, key) {
   var n = vtNorm(name).replace(/\bPIZZA INN\b/g, 'PIZZA'), o = vtNorm(owner);  // "Pizza Inn" is not a hotel
   // Hand-verified overrides win over everything
-  if (_vtOv && key && _vtOv[key] && VT_CODE[_vtOv[key]]) return VT_CODE[_vtOv[key]];
+  if (_vtOv) {
+    var ovc = (key && _vtOv[key]) || _vtOv['name:' + n] || (o && _vtOv['owner:' + o]);
+    if (ovc && VT_CODE[ovc]) return VT_CODE[ovc];
+  }
   // A name keyword is the strongest signal...
   if (VT_STADIUM.test(n)) return 'stadium';
   if (VT_HOTEL.test(n) || VT_HOTEL_OWNER.test(o)) return 'hotel';

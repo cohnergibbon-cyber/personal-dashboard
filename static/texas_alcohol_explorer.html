@@ -224,6 +224,9 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
 .venue-stats { display: flex; gap: 16px; }
 .venue-stat { font-family: var(--mono); font-size: 11px; color: var(--text3); }
 .venue-stat strong { color: var(--text); font-weight: 500; }
+.venue-owner { font-size: 11px; color: var(--text3); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-badge { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 10px; font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: 0.06em; background: var(--pos); color: #fff; vertical-align: middle; }
+.op-empty { padding: 18px 14px; font-size: 12px; color: var(--text3); text-align: center; border: 1px dashed var(--border2); border-radius: var(--r-sm); margin-bottom: 8px; }
 .map-status { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.04em; margin-bottom: 10px; }
 .venue-period { font-family:var(--mono); font-size:10px; color:var(--text3); letter-spacing:0.04em; }
 
@@ -411,6 +414,15 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
         </div>
       </div>
       <div style="margin-bottom:12px;">
+        <div class="flabel">Window</div>
+        <select id="op-window" class="sel" style="width:100%" onchange="opWindowChanged()">
+          <option value="30">Last 30 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="7">Last 7 days</option>
+          <option value="month">Specific month</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px;" id="op-period-wrap">
         <div class="flabel">Period</div>
         <div class="period-row">
           <select id="op-month" class="sel">
@@ -441,23 +453,13 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
         <span class="tbl-hint" id="op-new-hint">New Permits</span>
         <button class="btn-sm" onclick="exportOpeningsCSV('new')">Export CSV</button>
       </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Location</th><th>City</th><th>Address</th><th>Issue Date</th><th>Owner</th></tr></thead>
-          <tbody id="op-new-tbody"></tbody>
-        </table>
-      </div>
+      <div id="op-new-cards"></div>
 
       <div class="tbl-hdr" style="margin-top:20px;">
         <span class="tbl-hint" id="op-closed-hint">Recently Closed</span>
         <button class="btn-sm" onclick="exportOpeningsCSV('closed')">Export CSV</button>
       </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Location</th><th>City</th><th>Address</th><th>Status</th><th>Status Change Date</th><th>Owner</th></tr></thead>
-          <tbody id="op-closed-tbody"></tbody>
-        </table>
-      </div>
+      <div id="op-closed-cards"></div>
     </div>
   </div>
 </div>
@@ -1385,7 +1387,7 @@ function findNearbyByAddress(){
           "obligation_end_date_yyyymmdd>='"+year+'-'+month+"-01T00:00:00.000'",
           "obligation_end_date_yyyymmdd<'"+ny+'-'+pad+"-01T00:00:00.000'"
         ];
-        var url='https://data.texas.gov/resource/naix-2893.json?$limit=3000&$select=location_name,location_address,location_city,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
+        var url='https://data.texas.gov/resource/naix-2893.json?$limit=10000&$select=location_name,location_address,location_city,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
         return fetch(url).then(function(r){return r.json();}).then(function(venues){
           if (!venues||!venues.length) throw new Error('No venues found near '+rawCity);
           var geocoded=[], missing=0;
@@ -1411,7 +1413,7 @@ function findNearbyByAddress(){
             "obligation_end_date_yyyymmdd>='"+pyY+'-'+pyM+"-01T00:00:00.000'",
             "obligation_end_date_yyyymmdd<'"+pyNy+'-'+pyPad+"-01T00:00:00.000'"
           ];
-          var pyUrl='https://data.texas.gov/resource/naix-2893.json?$limit=3000&$select=location_name,location_address,location_zip,total_receipts&$where='+encodeURIComponent(pyWhere.join(' AND '));
+          var pyUrl='https://data.texas.gov/resource/naix-2893.json?$limit=10000&$select=location_name,location_address,location_zip,total_receipts&$where='+encodeURIComponent(pyWhere.join(' AND '));
           return fetch(pyUrl).then(function(r){return r.json();}).then(function(pyVenues){
             var pyMap={};
             (pyVenues||[]).forEach(function(p){
@@ -1476,7 +1478,7 @@ function findNearby(){
           "obligation_end_date_yyyymmdd>='"+year+'-'+month+"-01T00:00:00.000'",
           "obligation_end_date_yyyymmdd<'"+ny+'-'+pad+"-01T00:00:00.000'"
         ];
-        var url='https://data.texas.gov/resource/naix-2893.json?$limit=3000&$select=location_name,location_address,location_city,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
+        var url='https://data.texas.gov/resource/naix-2893.json?$limit=10000&$select=location_name,location_address,location_city,location_zip,total_receipts,obligation_end_date_yyyymmdd,taxpayer_name&$where='+encodeURIComponent(where.join(' AND '));
         return fetch(url).then(function(r){return r.json();}).then(function(venues){
           if(!venues||!venues.length) throw new Error('No venues found near '+rawCity);
           var geocoded=[], missing=0;
@@ -1504,7 +1506,7 @@ function findNearby(){
             "obligation_end_date_yyyymmdd>='"+pyY+'-'+pyM+"-01T00:00:00.000'",
             "obligation_end_date_yyyymmdd<'"+pyNy+'-'+pyPad+"-01T00:00:00.000'"
           ];
-          var pyUrl='https://data.texas.gov/resource/naix-2893.json?$limit=3000&$select=location_name,location_address,location_zip,total_receipts&$where='+encodeURIComponent(pyWhere.join(' AND '));
+          var pyUrl='https://data.texas.gov/resource/naix-2893.json?$limit=10000&$select=location_name,location_address,location_zip,total_receipts&$where='+encodeURIComponent(pyWhere.join(' AND '));
           return fetch(pyUrl).then(function(r){return r.json();}).then(function(pyVenues){
             var pyMap={};
             (pyVenues||[]).forEach(function(p){
@@ -1545,10 +1547,10 @@ var opNewRows = [], opClosedRows = [];
     ySel.appendChild(o);
   }
 
-  // Default to 2 months ago, matching Explorer's default (data updates daily,
-  // but 2-months-back keeps a full month's worth of issuances/closures visible by default)
+  // License data updates daily (newest records are from yesterday), unlike the lagging
+  // receipts dataset, so default the month picker to the current month. The tab itself
+  // defaults to a rolling 30-day window (see #op-window).
   var now = new Date();
-  now.setMonth(now.getMonth() - 2);
   var defYear = String(now.getFullYear());
   var defMonth = String(now.getMonth() + 1).padStart(2, '0');
   ySel.value = defYear;
@@ -1567,7 +1569,49 @@ var opNewRows = [], opClosedRows = [];
     opt.textContent = c.charAt(0) + c.slice(1).toLowerCase();
     citySel.appendChild(opt);
   });
+  opWindowChanged();
 })();
+
+function opWindowChanged() {
+  var rolling = document.getElementById('op-window').value !== 'month';
+  document.getElementById('op-period-wrap').style.display = rolling ? 'none' : 'block';
+}
+
+function opEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function opAddrLine(r) {
+  var tail = [r.city || '', (r.zip || '').slice(0,5)].join(' ').trim();
+  return [r.address || '', tail].filter(Boolean).join(', ');
+}
+
+function opDaysAgo(v) {
+  if (!v) return null;
+  var p = String(v).replace(/T.*/,'').split('-');
+  if (p.length !== 3) return null;
+  var d = new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10));
+  var t = new Date(); t = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  return Math.max(0, Math.round((t - d) / 86400000));
+}
+
+function opAgeLabel(n) {
+  if (n === 0) return 'today';
+  if (n === 1) return 'yesterday';
+  if (n < 60) return n + ' days ago';
+  return Math.round(n / 30) + ' mo ago';
+}
+
+function wireOpCards(boxId, rows) {
+  document.getElementById(boxId).querySelectorAll('.venue-card').forEach(function(card) {
+    card.addEventListener('click', function() {
+      var r = rows[parseInt(this.getAttribute('data-idx'), 10)];
+      // trade_name/owner -> locationName/taxpayerName is a name-matching heuristic across two
+      // independently-maintained datasets (license registry vs. receipts), not a guaranteed exact join.
+      if (r) openHistory(r.trade_name||'', r.owner||'', '', r.city||'', (r.zip||'').slice(0,5), r.address||'');
+    });
+  });
+}
 
 function opFmtDate(v) {
   if (!v) return '—';
@@ -1580,7 +1624,11 @@ function opFmtDate(v) {
 function clearOpenings() {
   document.getElementById('op-city').value = '';
   document.getElementById('op-zip').value = '';
-  ['op-month','op-year'].forEach(function(id){ document.getElementById(id).selectedIndex = 0; });
+  var _n = new Date();
+  document.getElementById('op-year').value = String(_n.getFullYear());
+  document.getElementById('op-month').value = String(_n.getMonth() + 1).padStart(2, '0');
+  document.getElementById('op-window').value = '30';
+  opWindowChanged();
   opNewRows = []; opClosedRows = [];
   document.getElementById('op-results').style.display = 'none';
   document.getElementById('op-err-box').style.display = 'none';
@@ -1589,6 +1637,16 @@ function clearOpenings() {
 }
 
 function opDateRange(month, year) {
+  var win = document.getElementById('op-window').value;
+  if (win !== 'month') {
+    var nDays = parseInt(win, 10);
+    var fmt = function(d) {
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + 'T00:00:00.000';
+    };
+    var endD = new Date(); endD.setDate(endD.getDate() + 1);              // include today
+    var startD = new Date(); startD.setDate(startD.getDate() - nDays + 1);
+    return { start: fmt(startD), end: fmt(endD) };
+  }
   var y = parseInt(year, 10), m = parseInt(month, 10);
   var ny = m === 12 ? y + 1 : y;
   var nm = m === 12 ? 1 : m + 1;
@@ -1631,8 +1689,8 @@ function runOpenings() {
     closedWhere += " AND starts_with(zip,'" + zipEsc + "')";
   }
 
-  var newUrl = LICENSE_API + '?$limit=1000&$order=original_issue_date+DESC&$select=trade_name,owner,address,city,zip,original_issue_date&$where=' + encodeURIComponent(newWhere);
-  var closedUrl = LICENSE_API + '?$limit=1000&$order=status_change_date+DESC&$select=trade_name,owner,address,city,zip,primary_status,status_change_date&$where=' + encodeURIComponent(closedWhere);
+  var newUrl = LICENSE_API + '?$limit=5000&$order=original_issue_date+DESC&$select=trade_name,owner,address,city,zip,original_issue_date&$where=' + encodeURIComponent(newWhere);
+  var closedUrl = LICENSE_API + '?$limit=5000&$order=status_change_date+DESC&$select=trade_name,owner,address,city,zip,primary_status,status_change_date&$where=' + encodeURIComponent(closedWhere);
 
   Promise.all([
     fetch(newUrl).then(function(r){ if(!r.ok) throw new Error('API error '+r.status); return r.json(); }),
@@ -1640,7 +1698,8 @@ function runOpenings() {
   ]).then(function(results) {
     opNewRows = results[0];
     opClosedRows = results[1];
-    document.getElementById('op-summary').textContent = opNewRows.length + ' new · ' + opClosedRows.length + ' closed';
+    var opCapped = opNewRows.length >= 5000 || opClosedRows.length >= 5000;
+    document.getElementById('op-summary').textContent = opNewRows.length + ' new · ' + opClosedRows.length + ' closed' + (opCapped ? ' · capped at 5,000' : '');
     renderOpenings(month, year);
     document.getElementById('op-results').style.display = 'block';
   }).catch(function(e) {
@@ -1652,53 +1711,51 @@ function runOpenings() {
 
 function renderOpenings(month, year) {
   var mNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  var periodLabel = mNames[parseInt(month,10)-1] + ' ' + year;
+  var opWin = document.getElementById('op-window').value;
+  var periodLabel = opWin === 'month' ? (mNames[parseInt(month,10)-1] + ' ' + year) : ('last ' + opWin + ' days');
   var filterSuffix = currentOpFilterLabel() ? ' for ' + currentOpFilterLabel() : '';
 
   document.getElementById('op-new-hint').textContent = 'New Permits — ' + periodLabel;
   document.getElementById('op-closed-hint').textContent = 'Recently Closed — ' + periodLabel;
 
-  var newBody = document.getElementById('op-new-tbody');
-  newBody.innerHTML = '';
+  var newBox = document.getElementById('op-new-cards');
   if (!opNewRows.length) {
-    newBody.innerHTML = '<tr><td colspan="5" class="dim">No new MB permits issued in ' + periodLabel + filterSuffix + '.</td></tr>';
+    newBox.innerHTML = '<div class="op-empty">No new MB permits issued in ' + opEsc(periodLabel + filterSuffix) + '.</div>';
   } else {
-    opNewRows.forEach(function(r) {
-      var tr = document.createElement('tr');
-      // trade_name/owner -> locationName/taxpayerName is a name-matching heuristic across two
-      // independently-maintained datasets (license registry vs. receipts), not a guaranteed exact join.
-      var args = [r.trade_name||'', r.owner||'', '', r.city||'', (r.zip||'').slice(0,5), r.address||''];
-      tr.addEventListener('click', function(){ openHistory.apply(null, args); });
-      tr.innerHTML =
-        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;font-weight:500">'+(r.trade_name||'—')+'</td>'+
-        '<td>'+(r.city||'—')+'</td>'+
-        '<td class="dim">'+(r.address||'—')+'</td>'+
-        '<td class="dim">'+opFmtDate(r.original_issue_date)+'</td>'+
-        '<td class="dim">'+(r.owner||'—')+'</td>';
-      newBody.appendChild(tr);
-    });
+    newBox.innerHTML = opNewRows.map(function(r, i) {
+      var age = opDaysAgo(r.original_issue_date);
+      var badge = (age !== null && age <= 30) ? '<span class="op-badge">NEW</span>' : '';
+      return '<div class="venue-card" data-idx="' + i + '">'
+        + '<div class="venue-name">' + opEsc(r.trade_name || '—') + badge + '</div>'
+        + '<div class="venue-addr">' + opEsc(opAddrLine(r)) + '</div>'
+        + '<div class="venue-stats">'
+        + '<div class="venue-stat">Permit date <strong>' + opFmtDate(r.original_issue_date) + '</strong></div>'
+        + (age !== null ? '<div class="venue-stat" style="color:var(--text3)">' + opAgeLabel(age) + '</div>' : '')
+        + '</div>'
+        + (r.owner ? '<div class="venue-owner">' + opEsc(r.owner) + '</div>' : '')
+        + '</div>';
+    }).join('');
+    wireOpCards('op-new-cards', opNewRows);
   }
 
-  var closedBody = document.getElementById('op-closed-tbody');
-  closedBody.innerHTML = '';
+  var closedBox = document.getElementById('op-closed-cards');
   if (!opClosedRows.length) {
-    closedBody.innerHTML = '<tr><td colspan="6" class="dim">No closures in ' + periodLabel + filterSuffix + '.</td></tr>';
+    closedBox.innerHTML = '<div class="op-empty">No closures in ' + opEsc(periodLabel + filterSuffix) + '.</div>';
   } else {
-    opClosedRows.forEach(function(r) {
-      var tr = document.createElement('tr');
-      // trade_name/owner -> locationName/taxpayerName is a name-matching heuristic across two
-      // independently-maintained datasets (license registry vs. receipts), not a guaranteed exact join.
-      var args = [r.trade_name||'', r.owner||'', '', r.city||'', (r.zip||'').slice(0,5), r.address||''];
-      tr.addEventListener('click', function(){ openHistory.apply(null, args); });
-      tr.innerHTML =
-        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;font-weight:500">'+(r.trade_name||'—')+'</td>'+
-        '<td>'+(r.city||'—')+'</td>'+
-        '<td class="dim">'+(r.address||'—')+'</td>'+
-        '<td class="neg">'+(r.primary_status||'—')+'</td>'+
-        '<td class="dim">'+opFmtDate(r.status_change_date)+'</td>'+
-        '<td class="dim">'+(r.owner||'—')+'</td>';
-      closedBody.appendChild(tr);
-    });
+    closedBox.innerHTML = opClosedRows.map(function(r, i) {
+      var age = opDaysAgo(r.status_change_date);
+      return '<div class="venue-card" data-idx="' + i + '">'
+        + '<div class="venue-name">' + opEsc(r.trade_name || '—') + '</div>'
+        + '<div class="venue-addr">' + opEsc(opAddrLine(r)) + '</div>'
+        + '<div class="venue-stats">'
+        + '<div class="venue-stat neg">' + opEsc(r.primary_status || '—') + '</div>'
+        + '<div class="venue-stat">Status date <strong>' + opFmtDate(r.status_change_date) + '</strong></div>'
+        + (age !== null ? '<div class="venue-stat" style="color:var(--text3)">' + opAgeLabel(age) + '</div>' : '')
+        + '</div>'
+        + (r.owner ? '<div class="venue-owner">' + opEsc(r.owner) + '</div>' : '')
+        + '</div>';
+    }).join('');
+    wireOpCards('op-closed-cards', opClosedRows);
   }
 }
 
@@ -1716,8 +1773,11 @@ function exportOpeningsCSV(section) {
       out.push([r.trade_name||'', r.city||'', r.address||'', (r.zip||'').slice(0,5), r.primary_status||'', opFmtDate(r.status_change_date), r.owner||'']);
     }
   });
-  var month = document.getElementById('op-month').value, year = document.getElementById('op-year').value;
-  downloadCSV(out, 'openings_'+section+'_'+year+'-'+month+'.csv');
+  var opWinSel = document.getElementById('op-window').value;
+  var tag = opWinSel === 'month'
+    ? document.getElementById('op-year').value + '-' + document.getElementById('op-month').value
+    : 'last' + opWinSel + 'd';
+  downloadCSV(out, 'openings_'+section+'_'+tag+'.csv');
 }
 
 // Tab switching

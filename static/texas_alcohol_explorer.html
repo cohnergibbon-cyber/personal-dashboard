@@ -245,6 +245,18 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
 .sort-pill { height:30px; padding:0 14px; border:1.5px solid var(--border2); border-radius:20px; background:transparent; color:var(--text2); font-size:11px; font-family:var(--mono); font-weight:600; cursor:pointer; transition:all 0.15s; -webkit-tap-highlight-color:transparent; white-space:nowrap; }
 .sort-pill.active { background:var(--accent); border-color:var(--accent); color:#F5F0E8; }
 .sort-pill:hover:not(.active) { border-color:var(--accent); color:var(--accent); }
+.type-chips { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.type-chips .sort-pill { height:28px; padding:0 11px; }
+.type-chips .sort-pill.vt-zero { opacity:0.45; }
+.vtag { display:inline-block; margin-left:8px; padding:1px 8px; border-radius:10px; border:1px solid; font-family:var(--mono); font-size:9px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; vertical-align:middle; white-space:nowrap; }
+.vt-restaurant { color:#2d5a2d; border-color:rgba(45,90,45,0.35); background:rgba(45,90,45,0.08); }
+.vt-hotel { color:#2f5d8a; border-color:rgba(47,93,138,0.35); background:rgba(47,93,138,0.08); }
+.vt-stadium { color:#8f6210; border-color:rgba(143,98,16,0.38); background:rgba(143,98,16,0.09); }
+.vt-entertainment { color:#7a3f8f; border-color:rgba(122,63,143,0.35); background:rgba(122,63,143,0.08); }
+.vt-line .vtag { margin-left:0; margin-top:3px; }
+.op-toggle { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text2); margin-bottom:10px; cursor:pointer; }
+.op-badge.muted { background:var(--text3); }
+.venue-owner { white-space:normal; overflow:visible; text-overflow:clip; }
 
 </style>
 </head>
@@ -327,6 +339,7 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
     </div>
 
     <div id="results">
+      <div id="tc-explorer" class="type-chips" style="display:none;"></div>
       <div class="tbl-hdr">
         <span class="tbl-hint">Tap any row for history</span>
         <button class="btn-sm" onclick="exportMainCSV()">Export CSV</button>
@@ -389,6 +402,7 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
     </div>
 
     <div id="map-status" class="map-status" style="display:none;"></div>
+    <div id="tc-nearby" class="type-chips" style="display:none;"></div>
     <div id="sort-row-wrap" style="display:none;" class="sort-row"><span class="sort-lbl">Sort</span><button class="sort-pill active" data-sort="proximity" onclick="setNearbySort('proximity')">Proximity</button><button class="sort-pill" data-sort="sales" onclick="setNearbySort('sales')">Highest sales</button></div>
     <div id="map-results"></div>
   </div>
@@ -449,6 +463,8 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
     </div>
 
     <div id="op-results" style="display:none;">
+      <label class="op-toggle" id="op-transfer-wrap" style="display:none;"><input type="checkbox" id="op-show-transfers" onchange="opRerender()"> <span id="op-transfer-label"></span></label>
+      <div id="tc-openings" class="type-chips" style="display:none;"></div>
       <div class="tbl-hdr">
         <span class="tbl-hint" id="op-new-hint">New Permits</span>
         <button class="btn-sm" onclick="exportOpeningsCSV('new')">Export CSV</button>
@@ -693,7 +709,7 @@ function runQuery() {
         r._var_pct = (r._var_amt!==null && pyVal && pyVal!==0) ? r._var_amt/pyVal*100 : null;
       });
 
-      allRows = cyData; sortKey = 'total_receipts'; sortDir = 'desc'; page = 1;
+      allRows = cyData; sortKey = 'total_receipts'; sortDir = 'desc'; page = 1; _vtFilter.explorer = 'all';
       applySort(); setMetrics(cyData);
 
       var modeLabel = isYTD ? ' (YTD)' : isT12 ? ' (T12)' : '';
@@ -747,7 +763,8 @@ function applySort() {
 
 function renderTable() {
   var isMobile = (window.innerWidth || document.documentElement.clientWidth) < 640;
-  var start=(page-1)*PER, slice=allRows.slice(start,start+PER);
+  var rowsV=explorerRows(); vtRenderChips('explorer', allRows);
+  var start=(page-1)*PER, slice=rowsV.slice(start,start+PER);
   document.getElementById('results').style.display='block';
   var tblWrap=document.getElementById('tbl-wrap');
   var cardList=document.getElementById('card-list');
@@ -772,7 +789,7 @@ function renderTable() {
       var card=document.createElement('div');
       card.className='venue-card';
       card.innerHTML=
-        '<div class="venue-name">'+(r.location_name||'—')+'</div>'+
+        '<div class="venue-name">'+(r.location_name||'—')+vtTag(vtRow(r,'explorer'))+'</div>'+
         '<div class="venue-addr">'+(r.location_address||'')+(city&&city!=='—'?', '+city:'')+' '+(r.location_zip||'')+'</div>'+
         '<div class="venue-stats">'+
           '<div class="venue-stat">'+(periodLabel?'<span class="venue-period">'+periodLabel+'</span> ':'')+
@@ -784,7 +801,7 @@ function renderTable() {
       var tr=document.createElement('tr');
       (function(a){tr.addEventListener('click',function(){openHistory.apply(null,a);});})(args);
       tr.innerHTML=
-        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;font-weight:500">'+(r.location_name||'—')+'</td>'+
+        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;font-weight:500">'+(r.location_name||'—')+'<div class="vt-line">'+vtTag(vtRow(r,'explorer'))+'</div></td>'+
         '<td>'+city+'</td>'+
         '<td class="num">'+fmtMoney(cyVal,false)+'</td>'+
         '<td class="num dim">'+(pyVal!==null?fmtMoney(pyVal,false):'—')+'</td>'+
@@ -793,9 +810,14 @@ function renderTable() {
       tbody.appendChild(tr);
     }
   });
-  var total=allRows.length,tp=Math.ceil(total/PER)||1;
+  if(!slice.length){
+    var emptyMsg='No venues of this type in these results.';
+    if(isMobile && cardList) cardList.innerHTML='<div class="op-empty">'+emptyMsg+'</div>';
+    else tbody.innerHTML='<tr><td colspan="6" class="dim">'+emptyMsg+'</td></tr>';
+  }
+  var total=rowsV.length,tp=Math.ceil(total/PER)||1;
   document.getElementById('page-info').textContent='Page '+page+' of '+tp;
-  document.getElementById('page-range').textContent=(start+1)+'–'+Math.min(start+PER,total)+' of '+total.toLocaleString();
+  document.getElementById('page-range').textContent=(total?start+1:0)+'–'+Math.min(start+PER,total)+' of '+total.toLocaleString();
   document.getElementById('btn-prev').disabled=page<=1;
   document.getElementById('btn-next').disabled=page>=tp;
 }
@@ -803,7 +825,7 @@ function renderTable() {
 function clearAll() {
   ['f-taxpayer','f-zip'].forEach(function(id){document.getElementById(id).value='';}); document.querySelectorAll('#city-options input[type=checkbox]').forEach(function(el){el.checked=false;}); document.getElementById('city-all').checked=true; updateCityLabel(); syncHiddenSelect();
   ['f-month','f-year'].forEach(function(id){document.getElementById(id).selectedIndex=0;}); document.getElementById('f-ytd').checked=false;
-  allRows=[];pyMap={};page=1;selectedMonth='';selectedYear='';
+  allRows=[];pyMap={};page=1;selectedMonth='';selectedYear='';_vtFilter.explorer='all';
   document.getElementById('results').style.display='none';
   document.getElementById('err-box').style.display='none';
   document.getElementById('summary').textContent='';
@@ -816,6 +838,7 @@ function clearAll() {
 function openHistory(locationName, taxpayerName, rowPeriod, locationCity, locationZip, locationAddress) {
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('modal-title').textContent=locationName;
+  document.getElementById('modal-title').insertAdjacentHTML('beforeend', vtTag(vtGetType(locationName, taxpayerName)));
   document.getElementById('modal-sub').textContent=taxpayerName+(locationCity?' · '+locationCity:'');
 
   // Google Maps link
@@ -841,6 +864,15 @@ function openHistory(locationName, taxpayerName, rowPeriod, locationCity, locati
 
   fetch(url)
     .then(function(res){return res.json();})
+    .then(function(data){
+      if (data.length || !locationName || !locationZip) return data;
+      // Ownership changes get a new taxpayer name (new LLC) but keep the venue, so fall back to
+      // venue name + ZIP (+ address when known) to find the history filed under the previous owner.
+      var w2="upper(location_name)='"+locationName.toUpperCase().replace(/'/g,"''")+"' AND starts_with(location_zip,'"+String(locationZip).slice(0,5).replace(/'/g,"''")+"')";
+      if (locationAddress) w2+=" AND upper(location_address)='"+locationAddress.toUpperCase().replace(/\s+/g,' ').trim().replace(/'/g,"''")+"'";
+      var url2=API+'?$limit=5000&$order=obligation_end_date_yyyymmdd+DESC&$select=obligation_end_date_yyyymmdd,total_receipts,liquor_receipts,wine_receipts,beer_receipts,responsibility_begin_date_yyyymmdd&$where='+encodeURIComponent(w2);
+      return fetch(url2).then(function(res){return res.json();});
+    })
     .then(function(data){
       if(!data.length){document.getElementById('modal-body').innerHTML='<div class="modal-loading">No history found.</div>';return;}
       modalHistoryData = data;
@@ -982,7 +1014,7 @@ function buildCitySummary(cyData, pyMapData) {
     // key is "name|zip" - need city from allRows
   });
   // Build PY by city from allRows (which have _py_total)
-  allRows.forEach(function(r) {
+  cyData.forEach(function(r) {
     var c = r.location_city||'UNKNOWN';
     if (r._py_total !== null && r._py_total !== undefined) {
       cityMapPY[c] = (cityMapPY[c]||0) + r._py_total;
@@ -1157,14 +1189,14 @@ function downloadCSV(rows, filename) {
 }
 function exportMainCSV() {
   if (!allRows || !allRows.length) return;
-  var headers = ['Location','City','Address','ZIP','Period','CY Total','PY Total','$ Variance','% Variance'];
+  var headers = ['Location','City','Address','ZIP','Period','CY Total','PY Total','$ Variance','% Variance','Type'];
   var rows = [headers];
-  allRows.forEach(function(r) {
+  explorerRows().forEach(function(r) {
     var cyVal = parseFloat(r.total_receipts)||0;
     var pyVal = (r._py_total !== null && r._py_total !== undefined) ? r._py_total : '';
     var varAmt = pyVal !== '' ? Math.round(cyVal - pyVal) : '';
     var varPct = varAmt !== '' && pyVal && pyVal !== 0 ? ((cyVal-pyVal)/pyVal*100).toFixed(1)+'%' : '';
-    rows.push([r.location_name||'',(r.location_city||'').replace('FT WORTH','FORT WORTH'),r.location_address||'',r.location_zip||'',fmtDate(r.obligation_end_date_yyyymmdd),Math.round(cyVal),pyVal!==''?Math.round(pyVal):'',varAmt,varPct]);
+    rows.push([r.location_name||'',(r.location_city||'').replace('FT WORTH','FORT WORTH'),r.location_address||'',r.location_zip||'',fmtDate(r.obligation_end_date_yyyymmdd),Math.round(cyVal),pyVal!==''?Math.round(pyVal):'',varAmt,varPct,vtLabel(vtRow(r,'explorer'))]);
   });
   var m=document.getElementById('f-month').value, y=document.getElementById('f-year').value;
   downloadCSV(rows, 'tx_alcohol_'+(y&&m?y+'_'+m:y||'export')+'.csv');
@@ -1286,7 +1318,9 @@ function renderNearbyCards(geocoded, maxMi) {
   var _d=new Date(); _d.setMonth(_d.getMonth()-2);
   var mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var periodLabel=mNames[_d.getMonth()]+' '+_d.getFullYear();
-  var filtered=geocoded.filter(function(v){return v.dist<=maxMi;});
+  var inRadius=geocoded.filter(function(v){return v.dist<=maxMi;});
+  vtRenderChips('nearby', inRadius);
+  var filtered=_vtFilter.nearby==='all' ? inRadius : inRadius.filter(function(v){return vtRow(v.record,'nearby')===_vtFilter.nearby;});
   if(_nearbySort==='sales'){
     filtered.sort(function(a,b){return (parseFloat(b.record.total_receipts)||0)-(parseFloat(a.record.total_receipts)||0);});
   } else {
@@ -1295,7 +1329,7 @@ function renderNearbyCards(geocoded, maxMi) {
   var sortWrap=document.getElementById('sort-row-wrap');
   if(sortWrap) sortWrap.style.display=filtered.length?'flex':'none';
   if(!filtered.length){
-    status.textContent='No venues within '+maxMi+' mi — try a larger radius.';
+    status.textContent=inRadius.length ? 'No '+vtLabel(_vtFilter.nearby)+' venues within '+maxMi+' mi.' : 'No venues within '+maxMi+' mi — try a larger radius.';
     results.innerHTML=''; return;
   }
   var missingNote = _nearbyMissingCount>0 ? ' · '+_nearbyMissingCount+' not shown (not yet mapped)' : '';
@@ -1315,7 +1349,7 @@ function renderNearbyCards(geocoded, maxMi) {
         +'<div class="venue-stat '+cls+'">'+(varPct!==null?(varPct>=0?'+':'')+varPct.toFixed(1)+'%':'—')+'</div>';
     }
     html+='<div class="venue-card" data-idx="'+i+'">'
-      +'<div class="venue-name">'+(r.location_name||'')+'</div>'
+      +'<div class="venue-name">'+(r.location_name||'')+vtTag(vtRow(r,'nearby'))+'</div>'
       +'<div class="venue-addr">'+(r.location_address||'')+(r.location_city?', '+r.location_city:'')+' '+(r.location_zip||'')+'</div>'
       +'<div class="venue-stats">'
       +'<div class="venue-stat"><span class="venue-period">'+periodLabel+'</span> <strong>'+fmtMoney(cy,false)+'</strong></div>'
@@ -1534,6 +1568,84 @@ function findNearby(){
 }
 
 
+// ---- Venue types (name-keyword heuristic; TABC has no venue-type field) ----
+var VTYPES = [
+  {id:'restaurant', label:'Restaurant / Bar'},
+  {id:'hotel', label:'Hotel'},
+  {id:'stadium', label:'Stadium'},
+  {id:'entertainment', label:'Entertainment'}
+];
+var VT_STADIUM = /\b(STADIUM|ARENA|BALLPARK|BALL PARK|COLISEUM|SPEEDWAY|RACEWAY|RACETRACK|RACE TRACK|AT&T STADIUM|GLOBE LIFE|MINUTE MAID PARK|KYLE FIELD|DELL DIAMOND|TOYOTA CENTER|AMERICAN AIRLINES CENTER|FROST BANK CENTER|MOODY CENTER|CIRCUIT OF THE AMERICAS)\b|\bFIELD$/;
+var VT_HOTEL = /\b(HOTEL|HOTELS|MOTEL|INN|INNS|SUITES|RESORT|RESORTS|LODGING|HILTON|MARRIOTT|HYATT|SHERATON|WESTIN|OMNI|WYNDHAM|DOUBLETREE|RITZ CARLTON|FOUR SEASONS|KIMPTON|INTERCONTINENTAL|CROWNE PLAZA|BEST WESTERN|LA QUINTA|DRURY|HAWTHORN|STAYBRIDGE|CANDLEWOOD)\b/;
+var VT_HOTEL_OWNER = /\b(HOTEL|HOTELS|RESORT|RESORTS|INN|HILTON|MARRIOTT|HYATT)\b/;
+var VT_ENTERTAINMENT = /\b(THEATER|THEATRE|THEATRES|CINEMA|CINEMAS|DRAFTHOUSE|MOVIE|MOVIES|AMC|CINEMARK|REGAL|BOWLING|LANES|TOPGOLF|GOLF|COUNTRY CLUB|CASINO|ARCADE|DAVE & BUSTERS|DAVE AND BUSTERS|MAIN EVENT|MUSEUM|ZOO|AQUARIUM|AMPHITHEATER|AMPHITHEATRE|CONCERT|MUSIC HALL|COMEDY|CONVENTION CENTER|CIVIC CENTER|FAIRGROUNDS|SKATING|TRAMPOLINE|KARTING|GO KARTS|ESCAPE ROOM|PLAYHOUSE|AUDITORIUM|THEME PARK|WATER PARK|SIX FLAGS|EVENT CENTER|EVENT VENUE|WEDDING VENUE|ENTERTAINMENT|BILLIARDS|POOL HALL|LIVE MUSIC|DANCE HALL|HONKY TONK)\b/;
+var _vtFilter = {explorer:'all', nearby:'all', openings:'all'};
+
+function vtNorm(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9& ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+
+function vtGetType(name, owner) {
+  var n = vtNorm(name).replace(/\bPIZZA INN\b/g, 'PIZZA'), o = vtNorm(owner);  // "Pizza Inn" is not a hotel
+  if (VT_STADIUM.test(n)) return 'stadium';
+  if (VT_HOTEL.test(n) || VT_HOTEL_OWNER.test(o)) return 'hotel';
+  if (VT_ENTERTAINMENT.test(n)) return 'entertainment';
+  return 'restaurant';
+}
+
+function vtRow(r, scope) {
+  if (r._vt) return r._vt;
+  r._vt = scope === 'openings' ? vtGetType(r.trade_name, r.owner) : vtGetType(r.location_name, r.taxpayer_name);
+  return r._vt;
+}
+
+function vtLabel(id) {
+  for (var i = 0; i < VTYPES.length; i++) if (VTYPES[i].id === id) return VTYPES[i].label;
+  return id;
+}
+
+function vtTag(id) { return '<span class="vtag vt-' + id + '">' + vtLabel(id) + '</span>'; }
+
+function vtRenderChips(scope, rows) {
+  var el = document.getElementById('tc-' + scope);
+  if (!el) return;
+  if (!rows || !rows.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  var counts = {all: rows.length};
+  VTYPES.forEach(function(t) { counts[t.id] = 0; });
+  rows.forEach(function(x) { counts[vtRow(scope === 'nearby' ? x.record : x, scope)]++; });
+  var cur = _vtFilter[scope];
+  var chip = function(id, label) {
+    return '<button class="sort-pill' + (cur === id ? ' active' : '') + (counts[id] === 0 ? ' vt-zero' : '') + '" onclick="vtSetFilter(\'' + scope + '\',\'' + id + '\')">'
+      + label + ' <span style="opacity:0.7">' + counts[id].toLocaleString() + '</span></button>';
+  };
+  el.innerHTML = chip('all', 'All') + VTYPES.map(function(t) { return chip(t.id, t.label); }).join('');
+  el.style.display = 'flex';
+}
+
+function vtSetFilter(scope, id) {
+  _vtFilter[scope] = id;
+  if (scope === 'explorer') {
+    page = 1;
+    var v = explorerRows();
+    setMetrics(v);
+    renderTable();
+    if (v.length) buildCitySummary(v, pyMap);
+  } else if (scope === 'nearby') {
+    renderNearbyCards(_nearbyGeocoded, _currentRadius);
+  } else if (scope === 'openings') {
+    renderOpenings(document.getElementById('op-month').value, document.getElementById('op-year').value);
+  }
+}
+
+function explorerRows() {
+  var f = _vtFilter.explorer;
+  return f === 'all' ? allRows : allRows.filter(function(r) { return vtRow(r, 'explorer') === f; });
+}
+
+function opView(rows) {
+  var f = _vtFilter.openings;
+  var vis = opVisible(rows);
+  return f === 'all' ? vis : vis.filter(function(r) { return vtRow(r, 'openings') === f; });
+}
+
 // ---- Openings tracker ----
 var LICENSE_API = 'https://data.texas.gov/resource/7hf9-qc9f.json';
 var opNewRows = [], opClosedRows = [];
@@ -1608,9 +1720,136 @@ function wireOpCards(boxId, rows) {
       var r = rows[parseInt(this.getAttribute('data-idx'), 10)];
       // trade_name/owner -> locationName/taxpayerName is a name-matching heuristic across two
       // independently-maintained datasets (license registry vs. receipts), not a guaranteed exact join.
-      if (r) openHistory(r.trade_name||'', r.owner||'', '', r.city||'', (r.zip||'').slice(0,5), r.address||'');
+      if (r) openHistory(r.trade_name||'', r._histOwner || r.owner||'', '', r.city||'', (r.zip||'').slice(0,5), r.address||'');
     });
   });
+}
+
+// ---- Ownership-change detection (see patch notes) ----
+var opClassifyFailed = false;
+var OP_LEGAL = {THE:1,LLC:1,INC:1,LP:1,LTD:1,LLP:1,CO:1,CORP:1,DBA:1,PLLC:1};
+var OP_GENERIC = {BAR:1,GRILL:1,RESTAURANT:1,RESTAURANTS:1,CAFE:1,KITCHEN:1,TAVERN:1,PUB:1,LOUNGE:1,BISTRO:1,CANTINA:1,TEXAS:1,TX:1,HOUSE:1,EATERY:1,BREWING:1,COMPANY:1,PARTNERS:1,HOLDINGS:1,HOLDING:1,GROUP:1,BEVERAGE:1,BEVERAGES:1,ENTERPRISES:1,INTERNATIONAL:1,AND:1,N:1,S:1,E:1,W:1,NORTH:1,SOUTH:1,EAST:1,WEST:1,SPORTS:1};
+
+function opTokens(s, dropGeneric) {
+  return String(s || '').toUpperCase().replace(/&/g, ' AND ').replace(/[^A-Z0-9 ]+/g, ' ').split(/\s+/).filter(function(t) {
+    return t && !OP_LEGAL[t] && !/^\d+$/.test(t) && !(dropGeneric && OP_GENERIC[t]);
+  });
+}
+
+function opSameName(a, b) {
+  var sa = opTokens(a, false).join(' '), sb = opTokens(b, false).join(' ');
+  if (!sa || !sb) return false;
+  if (sa === sb) return true;
+  var long3 = function(t) { return t.length >= 3; };
+  var ca = opTokens(a, true).filter(long3), cb = opTokens(b, true).filter(long3);
+  if (!ca.length || !cb.length) return false;
+  var shared = ca.filter(function(t) { return cb.indexOf(t) >= 0; }).length;
+  return shared >= 1 && shared / Math.min(ca.length, cb.length) >= 0.6;
+}
+
+function opSameOwner(a, b) {
+  var sa = opTokens(a, false).join(' '), sb = opTokens(b, false).join(' ');
+  return !!sa && sa === sb;
+}
+
+function opAddrNorm(a) { return String(a || '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+function opAddrKey(r) { return opAddrNorm(r.address) + '|' + String(r.zip || '').slice(0, 5); }
+
+function opClassify(newRows, closedRows) {
+  opClassifyFailed = false;
+  var seen = {}, addrs = [];
+  newRows.concat(closedRows).forEach(function(r) {
+    var a = opAddrNorm(r.address);
+    if (a && !seen[a]) { seen[a] = 1; addrs.push(a); }
+  });
+  var chunks = [];
+  for (var i = 0; i < addrs.length; i += 30) chunks.push(addrs.slice(i, i + 30));
+  return Promise.all(chunks.map(function(ch) {
+    var list = [];
+    ch.forEach(function(a) { var e = a.replace(/'/g, "''"); list.push("'" + e + "'"); list.push("'" + e + " '"); });  // dataset has trailing-space variants
+    var url = LICENSE_API + '?$limit=5000&$select=license_id,trade_name,owner,address,zip,original_issue_date,primary_status&$where='
+      + encodeURIComponent('upper(address) in (' + list.join(',') + ')');
+    return fetch(url).then(function(r) { if (!r.ok) throw new Error('lookup ' + r.status); return r.json(); });
+  })).then(function(parts) {
+    var byKey = {};
+    [].concat.apply([], parts).forEach(function(o) { var k = opAddrKey(o); (byKey[k] = byKey[k] || []).push(o); });
+
+    newRows.forEach(function(r) {
+      r._kind = 'new'; r._note = ''; r._histOwner = '';
+      var priors = (byKey[opAddrKey(r)] || []).filter(function(o) {
+        return o.license_id !== r.license_id && o.original_issue_date && o.original_issue_date < r.original_issue_date;
+      });
+      if (!priors.length) return;
+      var same = priors.filter(function(o) { return opSameName(o.trade_name, r.trade_name) || opSameOwner(o.owner, r.owner); });
+      if (same.length) {
+        same.sort(function(x, y) { return x.original_issue_date < y.original_issue_date ? -1 : 1; });
+        r._kind = 'transfer';
+        r._note = 'Existing venue since ' + same[0].original_issue_date.slice(0, 4) + ' (new license, likely ownership change)';
+        r._histOwner = same[0].owner || '';
+      } else {
+        // Only call it a replacement when the earlier venue is no longer active; an ACTIVE license at
+        // the same street address is usually just another tenant of the same building/mall.
+        var gone = priors.filter(function(o) { return o.primary_status && o.primary_status !== 'Active'; });
+        if (gone.length) {
+          gone.sort(function(x, y) { return x.original_issue_date < y.original_issue_date ? 1 : -1; });
+          r._kind = 'replaced';
+          r._note = 'Replaces ' + (gone[0].trade_name || 'a prior venue');
+        }
+      }
+    });
+
+    closedRows.forEach(function(r) {
+      r._kind = 'closed'; r._note = '';
+      var sc = String(r.status_change_date || '').slice(0, 10);
+      if (!sc) return;
+      var cutoff = new Date(Date.parse(sc) - 90 * 864e5).toISOString().slice(0, 10);
+      var succ = (byKey[opAddrKey(r)] || []).filter(function(o) {
+        return o.license_id !== r.license_id && o.original_issue_date
+          && o.original_issue_date.slice(0, 10) >= cutoff
+          && o.original_issue_date >= (r.original_issue_date || '');
+      });
+      if (!succ.length) return;
+      var same = succ.filter(function(o) { return opSameName(o.trade_name, r.trade_name) || opSameOwner(o.owner, r.owner); });
+      if (same.length) { r._kind = 'transfer'; r._note = 'Same venue, new license' + (same[0].owner ? ' (' + same[0].owner + ')' : ''); }
+      else { r._note = 'Replaced by ' + (succ[0].trade_name || 'another venue'); }
+    });
+    return true;
+  }).catch(function() { opClassifyFailed = true; return false; });
+}
+
+function opShowTransfers() {
+  var cb = document.getElementById('op-show-transfers');
+  return !!(cb && cb.checked);
+}
+
+function opVisible(rows) {
+  if (opShowTransfers()) return rows;
+  return rows.filter(function(r) { return r._kind !== 'transfer'; });
+}
+
+function opRerender() {
+  renderOpenings(document.getElementById('op-month').value, document.getElementById('op-year').value);
+}
+
+function opUpdateSummary() {
+  var transfers = opNewRows.concat(opClosedRows).filter(function(r) { return r._kind === 'transfer'; }).length;
+  var wrap = document.getElementById('op-transfer-wrap');
+  wrap.style.display = transfers ? 'flex' : 'none';
+  document.getElementById('op-transfer-label').textContent = 'Include ownership changes (' + transfers + ' hidden by default — same venue, new license)';
+  var cap = (opNewRows.length >= 5000 || opClosedRows.length >= 5000) ? ' · capped at 5,000' : '';
+  var fail = opClassifyFailed ? ' · ownership-change check unavailable' : '';
+  document.getElementById('op-summary').textContent = opVisible(opNewRows).length + ' new · ' + opVisible(opClosedRows).length + ' closed' + cap + fail;
+}
+
+function opNoteHtml(r) {
+  var parts = [];
+  if (r.owner) parts.push(r.owner);
+  if (r._note) parts.push(r._note);
+  return parts.length ? '<div class="venue-owner">' + opEsc(parts.join(' · ')) + '</div>' : '';
+}
+
+function opKindBadge(r) {
+  return r._kind === 'transfer' ? '<span class="op-badge muted">OWNERSHIP CHANGE</span>' : '';
 }
 
 function opFmtDate(v) {
@@ -1629,7 +1868,9 @@ function clearOpenings() {
   document.getElementById('op-month').value = String(_n.getMonth() + 1).padStart(2, '0');
   document.getElementById('op-window').value = '30';
   opWindowChanged();
-  opNewRows = []; opClosedRows = [];
+  opNewRows = []; opClosedRows = []; _vtFilter.openings = 'all';
+  document.getElementById('op-show-transfers').checked = false;
+  document.getElementById('op-transfer-wrap').style.display = 'none';
   document.getElementById('op-results').style.display = 'none';
   document.getElementById('op-err-box').style.display = 'none';
   document.getElementById('op-summary').textContent = '';
@@ -1689,19 +1930,22 @@ function runOpenings() {
     closedWhere += " AND starts_with(zip,'" + zipEsc + "')";
   }
 
-  var newUrl = LICENSE_API + '?$limit=5000&$order=original_issue_date+DESC&$select=trade_name,owner,address,city,zip,original_issue_date&$where=' + encodeURIComponent(newWhere);
-  var closedUrl = LICENSE_API + '?$limit=5000&$order=status_change_date+DESC&$select=trade_name,owner,address,city,zip,primary_status,status_change_date&$where=' + encodeURIComponent(closedWhere);
+  var newUrl = LICENSE_API + '?$limit=5000&$order=original_issue_date+DESC&$select=license_id,trade_name,owner,address,city,zip,original_issue_date&$where=' + encodeURIComponent(newWhere);
+  var closedUrl = LICENSE_API + '?$limit=5000&$order=status_change_date+DESC&$select=license_id,trade_name,owner,address,city,zip,original_issue_date,primary_status,status_change_date&$where=' + encodeURIComponent(closedWhere);
 
   Promise.all([
     fetch(newUrl).then(function(r){ if(!r.ok) throw new Error('API error '+r.status); return r.json(); }),
     fetch(closedUrl).then(function(r){ if(!r.ok) throw new Error('API error '+r.status); return r.json(); })
   ]).then(function(results) {
+    _vtFilter.openings = 'all';
     opNewRows = results[0];
     opClosedRows = results[1];
-    var opCapped = opNewRows.length >= 5000 || opClosedRows.length >= 5000;
-    document.getElementById('op-summary').textContent = opNewRows.length + ' new · ' + opClosedRows.length + ' closed' + (opCapped ? ' · capped at 5,000' : '');
-    renderOpenings(month, year);
-    document.getElementById('op-results').style.display = 'block';
+    document.getElementById('op-summary').textContent = 'Checking for ownership changes…';
+    document.getElementById('op-show-transfers').checked = false;
+    return opClassify(opNewRows, opClosedRows).then(function() {
+      renderOpenings(month, year);
+      document.getElementById('op-results').style.display = 'block';
+    });
   }).catch(function(e) {
     document.getElementById('op-err-box').textContent = 'Error: ' + e.message;
     document.getElementById('op-err-box').style.display = 'block';
@@ -1718,59 +1962,63 @@ function renderOpenings(month, year) {
   document.getElementById('op-new-hint').textContent = 'New Permits — ' + periodLabel;
   document.getElementById('op-closed-hint').textContent = 'Recently Closed — ' + periodLabel;
 
+  opUpdateSummary();
+  vtRenderChips('openings', opVisible(opNewRows).concat(opVisible(opClosedRows)));
+  var opNewV = opView(opNewRows), opClosedV = opView(opClosedRows);
+  var typeSfx = _vtFilter.openings === 'all' ? '' : ' (' + vtLabel(_vtFilter.openings) + ')';
   var newBox = document.getElementById('op-new-cards');
-  if (!opNewRows.length) {
-    newBox.innerHTML = '<div class="op-empty">No new MB permits issued in ' + opEsc(periodLabel + filterSuffix) + '.</div>';
+  if (!opNewV.length) {
+    newBox.innerHTML = '<div class="op-empty">No new MB permits issued in ' + opEsc(periodLabel + filterSuffix + typeSfx) + '.</div>';
   } else {
-    newBox.innerHTML = opNewRows.map(function(r, i) {
+    newBox.innerHTML = opNewV.map(function(r, i) {
       var age = opDaysAgo(r.original_issue_date);
-      var badge = (age !== null && age <= 30) ? '<span class="op-badge">NEW</span>' : '';
+      var badge = r._kind === 'transfer' ? opKindBadge(r) : ((age !== null && age <= 30) ? '<span class="op-badge">NEW</span>' : '');
       return '<div class="venue-card" data-idx="' + i + '">'
-        + '<div class="venue-name">' + opEsc(r.trade_name || '—') + badge + '</div>'
+        + '<div class="venue-name">' + opEsc(r.trade_name || '—') + vtTag(vtRow(r, 'openings')) + badge + '</div>'
         + '<div class="venue-addr">' + opEsc(opAddrLine(r)) + '</div>'
         + '<div class="venue-stats">'
         + '<div class="venue-stat">Permit date <strong>' + opFmtDate(r.original_issue_date) + '</strong></div>'
         + (age !== null ? '<div class="venue-stat" style="color:var(--text3)">' + opAgeLabel(age) + '</div>' : '')
         + '</div>'
-        + (r.owner ? '<div class="venue-owner">' + opEsc(r.owner) + '</div>' : '')
+        + opNoteHtml(r)
         + '</div>';
     }).join('');
-    wireOpCards('op-new-cards', opNewRows);
+    wireOpCards('op-new-cards', opNewV);
   }
 
   var closedBox = document.getElementById('op-closed-cards');
-  if (!opClosedRows.length) {
-    closedBox.innerHTML = '<div class="op-empty">No closures in ' + opEsc(periodLabel + filterSuffix) + '.</div>';
+  if (!opClosedV.length) {
+    closedBox.innerHTML = '<div class="op-empty">No closures in ' + opEsc(periodLabel + filterSuffix + typeSfx) + '.</div>';
   } else {
-    closedBox.innerHTML = opClosedRows.map(function(r, i) {
+    closedBox.innerHTML = opClosedV.map(function(r, i) {
       var age = opDaysAgo(r.status_change_date);
       return '<div class="venue-card" data-idx="' + i + '">'
-        + '<div class="venue-name">' + opEsc(r.trade_name || '—') + '</div>'
+        + '<div class="venue-name">' + opEsc(r.trade_name || '—') + vtTag(vtRow(r, 'openings')) + opKindBadge(r) + '</div>'
         + '<div class="venue-addr">' + opEsc(opAddrLine(r)) + '</div>'
         + '<div class="venue-stats">'
         + '<div class="venue-stat neg">' + opEsc(r.primary_status || '—') + '</div>'
         + '<div class="venue-stat">Status date <strong>' + opFmtDate(r.status_change_date) + '</strong></div>'
         + (age !== null ? '<div class="venue-stat" style="color:var(--text3)">' + opAgeLabel(age) + '</div>' : '')
         + '</div>'
-        + (r.owner ? '<div class="venue-owner">' + opEsc(r.owner) + '</div>' : '')
+        + opNoteHtml(r)
         + '</div>';
     }).join('');
-    wireOpCards('op-closed-cards', opClosedRows);
+    wireOpCards('op-closed-cards', opClosedV);
   }
 }
 
 function exportOpeningsCSV(section) {
-  var rows = section === 'new' ? opNewRows : opClosedRows;
+  var rows = opView(section === 'new' ? opNewRows : opClosedRows);
   if (!rows.length) return;
   var headers = section === 'new'
-    ? ['Location','City','Address','ZIP','Issue Date','Owner']
-    : ['Location','City','Address','ZIP','Status','Status Change Date','Owner'];
+    ? ['Location','City','Address','ZIP','Issue Date','Owner','Type','Note']
+    : ['Location','City','Address','ZIP','Status','Status Change Date','Owner','Type','Note'];
   var out = [headers];
   rows.forEach(function(r) {
     if (section === 'new') {
-      out.push([r.trade_name||'', r.city||'', r.address||'', (r.zip||'').slice(0,5), opFmtDate(r.original_issue_date), r.owner||'']);
+      out.push([r.trade_name||'', r.city||'', r.address||'', (r.zip||'').slice(0,5), opFmtDate(r.original_issue_date), r.owner||'', vtLabel(vtRow(r,'openings')), r._note||'']);
     } else {
-      out.push([r.trade_name||'', r.city||'', r.address||'', (r.zip||'').slice(0,5), r.primary_status||'', opFmtDate(r.status_change_date), r.owner||'']);
+      out.push([r.trade_name||'', r.city||'', r.address||'', (r.zip||'').slice(0,5), r.primary_status||'', opFmtDate(r.status_change_date), r.owner||'', vtLabel(vtRow(r,'openings')), r._note||'']);
     }
   });
   var opWinSel = document.getElementById('op-window').value;

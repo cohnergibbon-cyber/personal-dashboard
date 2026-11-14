@@ -181,6 +181,20 @@ tbody tr:active td:nth-child(1), tbody tr:active td:nth-child(2) { background: v
 .modal-export-row { text-align: right; margin-bottom: 12px; }
 .modal-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 16px; }
 @media (max-width: 500px) { .modal-cards { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 640px) {
+  .modal-overlay { padding: 12px 8px; }
+  .modal { padding: 16px 12px; }
+  #modal-body table { min-width: 0 !important; font-size: clamp(9px, 2.75vw, 11.5px); }
+  #modal-body thead th { padding: 7px 3px; font-size: 8px; letter-spacing: 0.03em; }
+  #modal-body tbody td { padding: 8px 3px; font-size: inherit; }
+  #modal-body tbody td.num { font-size: inherit; letter-spacing: -0.03em; }
+  #modal-body table.comp-table { font-size: clamp(8.5px, 2.5vw, 11px); }
+  #modal-body .comp-table th, #modal-body .comp-table td { padding-left: 2px; padding-right: 2px; }
+  #modal-body .comp-table td { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  #modal-body .comp-table td:first-child { white-space: normal; line-height: 1.25; font-weight: 500; }
+  #modal-body .comp-sub { display: block; font-size: 0.8em; font-weight: 400; color: var(--text3); white-space: nowrap; }
+  #modal-body .m-hide { display: none; }
+}
 .mmodal { background: var(--s2); border-radius: 10px; padding: 10px 12px; }
 .mmodal-lbl { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
 .mmodal-val { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
@@ -1033,13 +1047,13 @@ function openHistory(locationName, taxpayerName, rowPeriod, locationCity, locati
         '</div>';
 
       html+='<div class="comp-section"><div class="comp-title">Period comparison — '+mLabel+'</div>';
-      html+='<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="comp-table"><thead><tr><th></th><th>CY ('+refPeriod.year+')</th><th>PY ('+(refPeriod.year-1)+')</th><th>$ Variance</th><th>% Variance</th></tr></thead><tbody>';
+      html+='<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="comp-table"><thead><tr><th></th><th>CY ('+refPeriod.year+')</th><th>PY ('+(refPeriod.year-1)+')</th><th>$ Var<span class="m-hide">iance</span></th><th>% <span class="m-hide">Variance</span></th></tr></thead><tbody>';
       html+='<tr><td>'+mLabel+'</td>'+
         '<td>'+(cyVal!==null?fmtMoney(cyVal,false):'—')+'</td>'+
         '<td>'+(pyVal!==null?fmtMoney(pyVal,false):'—')+'</td>'+
         '<td class="'+(varAmt!==null?varClass(varAmt):'')+'">'+(varAmt!==null?(varAmt>=0?'+':'')+fmtMoney(varAmt,false):'—')+'</td>'+
         '<td class="'+(varPct!==null?varClass(varPct):'')+'">'+(varPct!==null?fmtPct(varPct):'—')+'</td></tr>';
-      html+='<tr><td>YTD (thru '+mLabel+')</td>'+
+      html+='<tr><td>YTD <span class="comp-sub">(thru '+mLabel+')</span></td>'+
         '<td>'+fmtMoney(cyYTD,false)+'</td>'+
         '<td>'+fmtMoney(pyYTD,false)+'</td>'+
         '<td class="'+varClass(ytdVar)+'">'+(ytdVar>=0?'+':'')+fmtMoney(ytdVar,false)+'</td>'+
@@ -1061,7 +1075,7 @@ function openHistory(locationName, taxpayerName, rowPeriod, locationCity, locati
         ? fmtDate(sortedPeriods[23].obligation_end_date_yyyymmdd) + ' – ' + fmtDate(sortedPeriods[12].obligation_end_date_yyyymmdd)
         : '';
 
-      html+='<tr><td>R12 ('+r12Label+')</td>'+
+      html+='<tr><td>R12 <span class="comp-sub">('+r12Label+')</span></td>'+
         '<td>'+fmtMoney(r12CY,false)+'</td>'+
         '<td>'+(r12PY?fmtMoney(r12PY,false):'—')+'</td>'+
         '<td class="'+varClass(r12Var)+'">'+(r12CY&&r12PY?(r12Var>=0?'+':'')+fmtMoney(r12Var,false):'—')+'</td>'+

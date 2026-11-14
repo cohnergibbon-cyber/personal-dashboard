@@ -47,6 +47,10 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 /* ─── Pages ─── */
 .page { display: none; }
 .page.active { display: block; }
+@media (max-width: 640px) {
+  html, body { overflow-x: hidden; }
+  body { padding-bottom: calc(var(--tab-h) + var(--safe) + 84px); }
+}
 .wrap { max-width: 960px; margin: 0 auto; padding: 0 14px; }
 
 /* ─── Header ─── */
@@ -66,7 +70,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); min-
 #city-panel { display: none; margin-bottom: 12px; }
 .cpanel { background: var(--s1); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; overflow: hidden; }
 .section-label { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
-.city-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.city-tbl { width: 100%; min-width: 0; border-collapse: collapse; table-layout: fixed; }
 .city-tbl th { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; padding: 0 3px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .city-tbl th:first-child { text-align: left; width: 36%; }
 .city-tbl th:nth-child(2) { width: 16%; }

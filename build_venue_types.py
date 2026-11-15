@@ -89,6 +89,36 @@ def overpass(query):
     raise RuntimeError('Overpass failed: %s' % last)
 
 
+def fetch_box(body, box, key, depth):
+    """Fetch one bounding box. If the servers keep timing out, split it into 4 smaller boxes (each cached)."""
+    s, w, n, e = box
+    prefix = 'part_%s.' % key
+    have_parts = any(f.startswith(prefix) for f in os.listdir(CACHE_DIR))
+    if not have_parts:
+        q = '[out:json][timeout:200][bbox:%s,%s,%s,%s];(%s);out tags bb center;' % (s, w, n, e, body)
+        try:
+            data = overpass(q)
+            time.sleep(3)
+            return data
+        except RuntimeError:
+            if depth >= 2:
+                raise
+        log('    splitting %s into 4 smaller boxes' % key)
+    ml, mo = round((s + n) / 2, 4), round((w + e) / 2, 4)
+    els = []
+    for k, sub in enumerate([(s, w, ml, mo), (s, mo, ml, e), (ml, w, n, mo), (ml, mo, n, e)]):
+        sk = '%s.%d' % (key, k)
+        cache = os.path.join(CACHE_DIR, 'part_%s.json' % sk)
+        if os.path.exists(cache):
+            d = json.load(open(cache))
+        else:
+            log('    part %s ...' % sk)
+            d = fetch_box(body, sub, sk, depth + 1)
+            json.dump(d, open(cache, 'w'))
+        els.extend(d.get('elements', []))
+    return {'elements': els}
+
+
 def download_features():
     os.makedirs(CACHE_DIR, exist_ok=True)
     feats = {}
@@ -99,11 +129,9 @@ def download_features():
             if os.path.exists(cache):
                 data = json.load(open(cache))
             else:
-                q = '[out:json][timeout:200][bbox:%s,%s,%s,%s];(%s);out tags bb center;' % (s, w, nn, e, body)
                 log('  %s tile %d/%d ...' % (label, n, len(boxes)))
-                data = overpass(q)
+                data = fetch_box(body, (s, w, nn, e), '%s_%d' % (code, n), 0)
                 json.dump(data, open(cache, 'w'))
-                time.sleep(3)
             for el in data.get('elements', []):
                 b = el.get('bounds')
                 c = el.get('center') or ({'lat': el.get('lat'), 'lon': el.get('lon')} if 'lat' in el else None)
@@ -117,6 +145,7 @@ def download_features():
                 feats[(code, el['type'], el['id'])] = {
                     'cat': code, 'box': box, 'name': tags.get('name', ''),
                     'num': tags.get('addr:housenumber', ''), 'street': tags.get('addr:street', ''),
+                    'tourism': tags.get('tourism', ''),
                 }
         log('  %s: %d features so far' % (label, sum(1 for k in feats if k[0] == code)))
     return list(feats.values())
@@ -230,6 +259,8 @@ def main():
     for f in feats:
         if diag_m(f['box']) > MAX_DIAG_M[f['cat']]:
             continue
+        if f['cat'] == 'e' and f.get('tourism') == 'attraction':
+            continue      # generic landmarks (historic buildings etc.) - too many restaurants sit in or next to them
         minlat, minlon, maxlat, maxlon = f['box']
         for gy in range(int((minlat - 0.003) / CELL) - 1, int((maxlat + 0.003) / CELL) + 2):
             for gx in range(int((minlon - 0.003) / CELL) - 1, int((maxlon + 0.003) / CELL) + 2):
@@ -250,7 +281,9 @@ def main():
                 continue
             a_ok = address_match(addr, f)
             n_ok = bool(vnames) and names_match(vnames, f['name'])
-            close = d <= MARGIN[f['cat']] and key not in approx
+            # proximity alone: stadiums within the margin; hotels only when the venue sits inside the footprint;
+            # never for entertainment (too many restaurants sit next to a theatre or museum)
+            close = key not in approx and ((f['cat'] == 's' and d <= MARGIN['s']) or (f['cat'] == 'h' and d == 0))
             if not (a_ok or n_ok or close):
                 continue
             score = (0 if a_ok else 1, 0 if n_ok else 1, d / MARGIN[f['cat']])
